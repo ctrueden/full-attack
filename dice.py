@@ -1,11 +1,21 @@
 import re
-import sys
 from random import randint
 
 TERM_RE = re.compile(r'^(~)?(\d+)(?:d(\d+))?\s+(.+)$')
 
 
-def parse_terms(expr):
+def parse_terms(expr: str) -> list[dict]:
+    """Parse a damage expression into a list of term dicts.
+
+    The expression is a '+'-separated list of terms, each of the form
+    `[~]N[dM] label`, e.g. "2d10 monk + ~10d6 sneak attack + 5 magic".
+    A term with `dM` rolls N dice of M sides; without it, N is a flat bonus.
+    A leading `~` marks a "precision" term (like sneak attack), which is
+    not multiplied on a critical hit.
+
+    Returns a list of dicts with keys 'precision', 'count', 'die', 'label'.
+    Raises ValueError if a term cannot be parsed.
+    """
     terms = []
     for part in expr.split('+'):
         part = part.strip()
@@ -24,7 +34,13 @@ def parse_terms(expr):
     return terms
 
 
-def roll_terms(terms, mult=1):
+def roll_terms(terms: list[dict], mult: int = 1) -> tuple[str, int]:
+    """Roll parsed terms and tally the results.
+
+    Each non-precision term's count is multiplied by `mult` (for critical
+    hits); precision terms are rolled normally. Returns a tuple of
+    (text, total), where text is a per-term breakdown followed by the total.
+    """
     total = 0
     lines = []
     for term in terms:
@@ -40,12 +56,25 @@ def roll_terms(terms, mult=1):
     return '\n'.join(lines), total
 
 
-def roll(expr):
+def roll(expr: str) -> str:
+    """Roll a damage expression once and return the breakdown text."""
     text, _ = roll_terms(parse_terms(expr))
     return text
 
 
-def one_attack(bonus, damage_expr, crit_range=20, crit_mult=2, label=None):
+def one_attack(
+    bonus: int,
+    damage_expr: str,
+    crit_range: int = 20,
+    crit_mult: int = 2,
+    label: str | None = None,
+) -> str:
+    """Resolve a single attack and return a text summary.
+
+    Rolls d20 + bonus to hit and rolls normal damage. If the d20 is at or
+    above `crit_range`, also rolls a crit confirmation and multiplied
+    critical damage (x`crit_mult`), so the player can pick whichever applies.
+    """
     lines = []
     header = f"{label + ': ' if label else ''}"
     d20 = randint(1, 20)
@@ -66,7 +95,13 @@ def one_attack(bonus, damage_expr, crit_range=20, crit_mult=2, label=None):
     return '\n'.join(lines)
 
 
-def attack(attacks):
+def attack(attacks: list[tuple]) -> str:
+    """Resolve a sequence of attacks and return their combined text.
+
+    Each entry is a tuple of
+    (label, bonus, damage_expr[, crit_range[, crit_mult]]),
+    with crit_range defaulting to 20 and crit_mult to 2.
+    """
     blocks = []
     for _, entry in enumerate(attacks, 1):
         desc, bonus, damage_expr = entry[0], entry[1], entry[2]
@@ -76,7 +111,13 @@ def attack(attacks):
     return '\n\n'.join(blocks)
 
 
-def full_attack(att_strike: int, dmg_strike: str, att_shield: int, dmg_shield: str):
+def full_attack(att_strike: int, dmg_strike: str, att_shield: int, dmg_shield: str) -> None:
+    """Print Allister's full attack routine.
+
+    Interleaves unarmed strikes and shield bashes at iterative penalties,
+    plus the Eternal Defender slam and the extra attack from haste.
+    Takes the base attack bonus and damage expression for each weapon.
+    """
     attacks = [
       ("First unarmed strike",  att_strike -  0, dmg_strike, 19),
       ("First shield bash",     att_shield -  0, dmg_shield, 19), # shield master feat waives -2 TWF penalty
