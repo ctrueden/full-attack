@@ -97,3 +97,7 @@ def test_load_by_name(tmp_path, monkeypatch):
     (tmp_path / "full-attack" / "grog.toml").write_text('system = "3.5"\n')
     c = load("grog")
     assert c.name == "Grog" and c.system.name == "3.5"
+
+
+def test_load_without_suffix():
+    assert load(EXAMPLE.with_suffix("")).name == "Allister"

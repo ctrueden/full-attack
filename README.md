@@ -85,7 +85,7 @@ A natural 20 is flagged `(auto-hit)` and a natural 1 is flagged
 Keep `fa` around: everything below reuses the same rolls. Calling
 `al.full()` again rolls a new routine.
 
-To look at a single attack again, use `fa[6]`.
+To look at a single attack again, use `fa[6]` (`fa[-1]` is the last one).
 
 ### 2. Tell it which attacks landed
 
@@ -112,6 +112,8 @@ To look at a single attack again, use `fa[6]`.
 
 - `crit(...)` marks confirmed crits. A crit counts as a hit, so there's no
   need to repeat it in `hit(...)`.
+- Numbers that don't match an attack raise an error, so a typo like
+  `fa.hit(10)` won't quietly drop damage.
 - Each call to `hit(...)` or `crit(...)` *replaces* the previous one rather
   than adding to it. If the GM corrects you, just call it again with the
   full list.
@@ -192,7 +194,8 @@ hope), adjust the bonuses yourself or keep a separate character file.
 Character files are [TOML](https://toml.io/). Put them in
 `~/.config/full-attack/` to load them by name (`load("allister")` reads
 `allister.toml`), or load any file directly with
-`load("path/to/grog.toml")`. `characters()` lists the names available.
+`load("path/to/grog.toml")` (the `.toml` is optional when the path has a
+`/`, e.g. `load("examples/allister")`). `characters()` lists the names available.
 (If `$XDG_CONFIG_HOME` is set, that is used instead of `~/.config`.)
 
 See [examples/allister.toml](examples/allister.toml) for a complete one.

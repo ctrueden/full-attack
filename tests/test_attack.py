@@ -1,3 +1,5 @@
+import pytest
+
 from fullattack import attack, one_attack
 
 
@@ -26,3 +28,15 @@ def test_sequence_narrowing(script):
     # A crit: (1 + 2 sneak) + extra 3; B hit: 4 + 5 sneak.
     assert fa.hit(2).crit(1).damage.total == 1 + 2 + 3 + 4 + 5
     assert fa.hit(2).crit(1).without("sneak").damage.total == 1 + 3 + 4
+
+
+def test_sequence_numbering(script):
+    fa = attack([("A", 1, "1 a"), ("B", 2, "1 b")], dice=script(5, 6))
+    assert fa[1].label == "A" and fa[2].label == "B" and fa[-1].label == "B"
+    for num in (0, 3, -3):
+        with pytest.raises(IndexError, match="numbered 1 to 2"):
+            fa[num]
+    with pytest.raises(IndexError, match="No attack 3"):
+        fa.hit(1, 3)
+    with pytest.raises(IndexError, match="No attack 0"):
+        fa.crit(0)

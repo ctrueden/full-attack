@@ -121,18 +121,32 @@ class AttackSequence:
 
     def hit(self, *nums: int) -> "AttackSequence":
         """Return a copy where only the given attacks (plus any crits) hit."""
-        return replace(self, hits=frozenset(nums))
+        return replace(self, hits=self._check_nums(nums))
 
     def crit(self, *nums: int) -> "AttackSequence":
         """Return a copy where the given attacks are confirmed crits (and thus hits)."""
-        return replace(self, crits=frozenset(nums))
+        return replace(self, crits=self._check_nums(nums))
+
+    def _check_nums(self, nums: tuple[int, ...]) -> frozenset[int]:
+        bad = [n for n in nums if not 1 <= n <= len(self.outcomes)]
+        if bad:
+            raise IndexError(
+                f"No attack {', '.join(map(str, bad))}: "
+                f"attacks are numbered 1 to {len(self.outcomes)}"
+            )
+        return frozenset(nums)
 
     def without(self, *labels: str) -> "AttackSequence":
         """Return a copy omitting damage terms whose labels contain any of the given strings."""
         return replace(self, outcomes=tuple(o.without(*labels) for o in self.outcomes))
 
     def __getitem__(self, num: int) -> AttackOutcome:
-        return self.outcomes[num - 1]
+        """Get attack `num`, numbered from 1; negative numbers count from the end."""
+        if num == 0 or abs(num) > len(self.outcomes):
+            raise IndexError(
+                f"No attack {num}: attacks are numbered 1 to {len(self.outcomes)}"
+            )
+        return self.outcomes[num - 1 if num > 0 else num]
 
     def __iter__(self):
         return iter(self.outcomes)

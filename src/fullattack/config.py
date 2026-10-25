@@ -22,12 +22,16 @@ def characters() -> list[str]:
 def load(character: str | os.PathLike) -> Character:
     """Load a character by name from the config directory, or from a TOML file.
 
-    Anything ending in `.toml` or containing a path separator is a file path;
-    otherwise, e.g. `load("allister")` reads ~/.config/full-attack/allister.toml.
+    A bare name like `load("allister")` reads ~/.config/full-attack/allister.toml.
+    Anything ending in `.toml` or containing a path separator is a file path,
+    with `.toml` added if missing, e.g. `load("examples/allister")`.
     """
     path = Path(character)
-    if path.suffix != ".toml" and len(path.parts) == 1:
-        path = config_dir() / f"{character}.toml"
+    if path.suffix != ".toml":
+        bare = len(path.parts) == 1
+        path = path.with_name(f"{path.name}.toml")
+        if bare:
+            path = config_dir() / path
     with open(path, "rb") as f:
         data = tomllib.load(f)
     try:
