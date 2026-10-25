@@ -1,0 +1,39 @@
+# Allister, a high-level Pathfinder 1E monk.
+#
+# Attack bonuses are final values, before iterative penalties; each routine
+# entry's `step` applies the system's iterative penalty (-5 per step in PF1).
+# Damage terms marked ~ are "extra" dice, never multiplied on a PF1 crit.
+
+name = "Allister"
+system = "pf1"
+
+[weapons.strike]
+bonus = 25
+damage = "2d10 monk + ~1d6 merciful + ~2d6 holy + ~10d6 sneak attack + 2 strength + 2 martial training + 5 magic"
+crit_range = 19
+
+[weapons.shield]
+bonus = 25
+damage = "1d4 weapon + ~10d6 sneak attack + 1 strength + 5 magic"
+crit_range = 19
+
+[routines]
+full = [
+  { weapon = "strike", label = "First unarmed strike" },
+  { weapon = "shield", label = "First shield bash" },  # Shield Master waives the -2 TWF penalty
+  { weapon = "strike", step = 1, label = "Second unarmed strike" },
+  { weapon = "shield", step = 1, label = "Second shield bash" },
+  { weapon = "strike", step = 2, label = "Third unarmed strike" },
+  { weapon = "shield", step = 2, label = "Third shield bash" },
+  { weapon = "strike", step = 3, label = "Fourth unarmed strike" },
+  { weapon = "shield", step = 1, label = "Eternal defender slam" },  # Slam ability
+  { weapon = "strike", label = "Haste attack" },
+]
+
+[buffs."good hope"]
+active = true
+damage = "2 good hope"  # a string applies to every weapon
+
+[buffs."power attack"]
+active = true
+damage = { strike = "10 power attack", shield = "5 power attack" }

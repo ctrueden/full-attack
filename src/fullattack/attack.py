@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from .dice import Damage, Dice, default_dice, parse_terms, roll_damage
+from .dice import Damage, Dice, Term, default_dice, parse_terms, roll_damage
 from .systems import Check, GameSystem, get_system
 
 
@@ -71,26 +71,29 @@ class AttackOutcome:
 
 def one_attack(
     bonus: int,
-    damage_expr: str,
+    damage: str | list[Term],
     *rule_args: Any,
     label: str | None = None,
     system: GameSystem | str = "pf1",
+    rules: Any = None,
     dice: Dice = default_dice,
     **rule_kwargs: Any,
 ) -> AttackOutcome:
     """Resolve a single attack.
 
     Rolls d20 + bonus to hit, normal damage, and critical damage, so the
-    player can pick whichever applies. Remaining arguments build the
-    system's weapon rules, e.g. `one_attack(20, "1d8 axe", 20, 3)` for a
-    3.x weapon threatening on 20 with a x3 multiplier.
+    player can pick whichever applies. `damage` is an expression or parsed
+    terms. Unless `rules` is given, remaining arguments build the system's
+    weapon rules, e.g. `one_attack(20, "1d8 axe", 20, 3)` for a 3.x weapon
+    threatening on 20 with a x3 multiplier.
 
     Dice are rolled in this order: the to-hit d20, any crit confirmation
     the system needs, the normal damage, then the critical damage (always).
     """
     system = get_system(system)
-    rules = system.weapon_rules(*rule_args, **rule_kwargs)
-    terms = parse_terms(damage_expr)
+    if rules is None:
+        rules = system.weapon_rules(*rule_args, **rule_kwargs)
+    terms = parse_terms(damage) if isinstance(damage, str) else damage
     d20 = dice(20)
     check = system.check(d20, rules, dice)
     damage = roll_damage(terms, dice)
@@ -130,6 +133,12 @@ class AttackSequence:
 
     def __getitem__(self, num: int) -> AttackOutcome:
         return self.outcomes[num - 1]
+
+    def __iter__(self):
+        return iter(self.outcomes)
+
+    def __len__(self) -> int:
+        return len(self.outcomes)
 
     def _landed(self) -> list[tuple[int, AttackOutcome, bool]]:
         """List (number, outcome, is_crit) for each attack that hit."""
