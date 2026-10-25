@@ -49,6 +49,8 @@ def test_buff_toggles(script):
     assert c.buff("bless", "-rage").active == {"bless"}
     o = c.attack("axe", buffs=("+bless",), dice=script(12, 5, 4, 1, 1))[1]
     assert [t.label for t in o.damage.terms] == ["axe", "frost", "rage", "bless"]
+    o = c.attack("axe", buffs="-rage", dice=script(12, 5, 4, 1, 1))[1]
+    assert [t.label for t in o.damage.terms] == ["axe", "frost"]
     with pytest.raises(ValueError, match="Unknown buff"):
         c.buff("haste")
 

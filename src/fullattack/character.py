@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -68,12 +69,17 @@ class Character:
         return replace(self, active=self._toggled(toggles))
 
     def attack(
-        self, name: str, buffs: tuple[str, ...] = (), dice: Dice = default_dice
+        self,
+        name: str,
+        buffs: str | Iterable[str] = (),
+        dice: Dice = default_dice,
     ) -> AttackSequence:
         """Roll a routine, or a single attack with a weapon, by name.
 
         `buffs` toggles buffs for this roll only, as with `buff`.
         """
+        if isinstance(buffs, str):
+            buffs = (buffs,)
         if name in self.routines:
             entries = self.routines[name]
         elif name in self.weapons:
@@ -81,7 +87,8 @@ class Character:
         else:
             known = ", ".join([*self.routines, *self.weapons])
             raise ValueError(f"Unknown routine or weapon {name!r} (known: {known})")
-        active = [b for b in self.buffs.values() if b.name in self._toggled(buffs)]
+        toggled = self._toggled(tuple(buffs))
+        active = [b for b in self.buffs.values() if b.name in toggled]
         outcomes = []
         for entry in entries:
             weapon = self.weapons[entry.weapon]
