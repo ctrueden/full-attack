@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=77.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "full-attack"
+version = "0.1.0.dev0"
+description = "Speed up D&D combat 🎲"
+license = "Unlicense"
+authors = [{name = "Curtis Rueden", email = "ctrueden@wisc.edu"}]
+readme = "README.md"
+keywords = ["gaming", "tabletop", "D&D", "dungeons", "dragons", "pathfinder", "dice"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Other Audience",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Topic :: Utilities",
+]
+
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "assertpy",
+    "build",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "validate-pyproject[all]",
+]
+
+[project.urls]
+homepage = "https://github.com/ctrueden/full-attack"
+documentation = "https://github.com/ctrueden/full-attack/blob/main/README.md"
+source = "https://github.com/ctrueden/full-attack"
+download = "https://pypi.org/project/full-attack/"
+tracker = "https://github.com/ctrueden/full-attack/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "default::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+extend-exclude = ["bin", "build", "dist"]
+
+[tool.ruff.lint]
+extend-ignore = ["E203"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore `E402` (import violations) in all `__init__.py` files, and in `path/to/file.py`.
+"__init__.py" = ["E402", "F401"]
