@@ -6,7 +6,7 @@ from fullattack import Damage, Term, TermRoll, parse_terms, roll_damage, roll_te
 def test_parse_terms():
     assert parse_terms("2d10 monk + ~10d6 sneak attack + 5 magic") == [
         Term("monk", 2, 10),
-        Term("sneak attack", 10, 6, precision=True),
+        Term("sneak attack", 10, 6, extra=True),
         Term("magic", 5),
     ]
 
@@ -41,12 +41,9 @@ def test_roll_negative_term(script):
     assert roll.value == -5
 
 
-def test_roll_damage_crit(script):
-    terms = parse_terms("1d8 weapon + ~1d6 sneak + 3 str")
-    normal, extra = roll_damage(terms, crit_mult=3, dice=script(5, 2, 7, 1))
-    assert normal.total == 5 + 2 + 3
-    # Two more sets of the weapon die and flat bonus; precision not multiplied.
-    assert [(t.label, t.value) for t in extra.terms] == [("weapon", 8), ("str", 6)]
+def test_roll_damage(script):
+    damage = roll_damage(parse_terms("2d6 fire - 1 weak"), script(3, 4))
+    assert damage.total == 6
 
 
 def test_damage_without_and_add():

@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 from .dice import Damage, Dice, default_dice, parse_terms, roll_damage
+from .systems import Check, GameSystem, get_system
 
 
 @dataclass(frozen=True, repr=False)
@@ -14,10 +16,10 @@ class AttackOutcome:
     label: str | None
     bonus: int
     d20: int
-    confirm_d20: int | None
-    crit_mult: int
+    check: Check
     damage: Damage
-    crit_extra: Damage
+    crit_damage: Damage
+    crit_note: str
 
     @property
     def to_hit(self) -> int:
@@ -25,34 +27,42 @@ class AttackOutcome:
 
     @property
     def threatened(self) -> bool:
-        return self.confirm_d20 is not None
+        return self.check.threat
+
+    @property
+    def confirm_d20(self) -> int | None:
+        return self.check.confirm_d20
 
     @property
     def confirm_total(self) -> int | None:
         return None if self.confirm_d20 is None else self.confirm_d20 + self.bonus
-
-    @property
-    def crit_damage(self) -> Damage:
-        return self.damage + self.crit_extra
 
     def without(self, *labels: str) -> "AttackOutcome":
         """Return a copy omitting damage terms whose labels contain any of the given strings."""
         return replace(
             self,
             damage=self.damage.without(*labels),
-            crit_extra=self.crit_extra.without(*labels),
+            crit_damage=self.crit_damage.without(*labels),
         )
 
     def __str__(self) -> str:
         header = f"{self.label}: " if self.label else ""
-        lines = [f"{header}d20({self.d20}) + {self.bonus} = {self.to_hit}"]
+        auto = (
+            " (auto-hit)"
+            if self.check.auto_hit
+            else " (auto-miss)"
+            if self.check.auto_miss
+            else ""
+        )
+        lines = [f"{header}d20({self.d20}) + {self.bonus} = {self.to_hit}{auto}"]
         lines.append("Damage:")
         lines.append(str(self.damage))
         if self.threatened:
-            lines.append(
-                f"Crit confirm: d20({self.confirm_d20}) + {self.bonus} = {self.confirm_total}"
-            )
-            lines.append(f"Critical damage (x{self.crit_mult}):")
+            if self.confirm_d20 is not None:
+                lines.append(
+                    f"Crit confirm: d20({self.confirm_d20}) + {self.bonus} = {self.confirm_total}"
+                )
+            lines.append(f"Critical damage ({self.crit_note}):")
             lines.append(str(self.crit_damage))
         return "\n".join(lines)
 
@@ -62,24 +72,32 @@ class AttackOutcome:
 def one_attack(
     bonus: int,
     damage_expr: str,
-    crit_range: int = 20,
-    crit_mult: int = 2,
+    *rule_args: Any,
     label: str | None = None,
+    system: GameSystem | str = "pf1",
     dice: Dice = default_dice,
+    **rule_kwargs: Any,
 ) -> AttackOutcome:
     """Resolve a single attack.
 
-    Rolls d20 + bonus to hit and rolls damage. If the d20 is at or above
-    `crit_range`, also rolls a crit confirmation and the extra critical
-    damage (x`crit_mult`), so the player can pick whichever applies.
+    Rolls d20 + bonus to hit, normal damage, and critical damage, so the
+    player can pick whichever applies. Remaining arguments build the
+    system's weapon rules, e.g. `one_attack(20, "1d8 axe", 20, 3)` for a
+    3.x weapon threatening on 20 with a x3 multiplier.
 
-    Dice are rolled in this order: the to-hit d20, the confirm d20 (on a
-    threat), the normal damage, then the extra critical damage (always).
+    Dice are rolled in this order: the to-hit d20, any crit confirmation
+    the system needs, the normal damage, then the critical damage (always).
     """
+    system = get_system(system)
+    rules = system.weapon_rules(*rule_args, **rule_kwargs)
+    terms = parse_terms(damage_expr)
     d20 = dice(20)
-    confirm_d20 = dice(20) if d20 >= crit_range else None
-    damage, crit_extra = roll_damage(parse_terms(damage_expr), crit_mult, dice)
-    return AttackOutcome(label, bonus, d20, confirm_d20, crit_mult, damage, crit_extra)
+    check = system.check(d20, rules, dice)
+    damage = roll_damage(terms, dice)
+    crit_damage = system.crit_damage(terms, damage, rules, dice)
+    return AttackOutcome(
+        label, bonus, d20, check, damage, crit_damage, system.crit_note(rules)
+    )
 
 
 @dataclass(frozen=True, repr=False)
@@ -134,7 +152,7 @@ class AttackSequence:
         lines = []
         for n, o, is_crit in self._landed():
             dmg = o.crit_damage if is_crit else o.damage
-            crit_note = f" (crit x{o.crit_mult})" if is_crit else ""
+            crit_note = f" (crit {o.crit_note})" if is_crit else ""
             lines.append(f"#{n} {o.label}{crit_note}: {dmg.total}")
         lines.append("=" * 20)
         lines.append(str(self.damage))
@@ -143,19 +161,20 @@ class AttackSequence:
     __repr__ = __str__
 
 
-def attack(attacks: list[tuple], dice: Dice = default_dice) -> AttackSequence:
+def attack(
+    attacks: list[tuple],
+    system: GameSystem | str = "pf1",
+    dice: Dice = default_dice,
+) -> AttackSequence:
     """Resolve a sequence of attacks.
 
-    Each entry is a tuple of
-    (label, bonus, damage_expr[, crit_range[, crit_mult]]),
-    with crit_range defaulting to 20 and crit_mult to 2.
+    Each entry is a tuple of (label, bonus, damage_expr, *rule_args), where
+    rule_args build the system's weapon rules; for 3.x, these are
+    [crit_range[, crit_mult]], defaulting to 20 and 2.
     """
-    outcomes = []
-    for entry in attacks:
-        desc, bonus, damage_expr = entry[0], entry[1], entry[2]
-        crit_range = entry[3] if len(entry) > 3 else 20
-        crit_mult = entry[4] if len(entry) > 4 else 2
-        outcomes.append(
-            one_attack(bonus, damage_expr, crit_range, crit_mult, desc, dice)
+    return AttackSequence(
+        tuple(
+            one_attack(bonus, expr, *rule_args, label=label, system=system, dice=dice)
+            for label, bonus, expr, *rule_args in attacks
         )
-    return AttackSequence(tuple(outcomes))
+    )

@@ -29,7 +29,7 @@ class Term:
     label: str
     count: int
     die: int | None = None
-    precision: bool = False
+    extra: bool = False
 
 
 def parse_terms(expr: str) -> list[Term]:
@@ -38,8 +38,9 @@ def parse_terms(expr: str) -> list[Term]:
     The expression is a '+'/'-'-separated list of terms, each of the form
     `[~]N[dM] label`, e.g. "2d10 monk + ~10d6 sneak attack - 2 enfeebled".
     A term with `dM` rolls N dice of M sides; without it, N is a flat bonus.
-    A leading `~` marks a "precision" term (like sneak attack), which is
-    not multiplied on a critical hit.
+    A leading `~` marks an "extra" term: damage beyond the weapon's own,
+    like sneak attack or flaming, which some game systems treat specially
+    on a critical hit.
 
     Raises ValueError if a term cannot be parsed.
     """
@@ -51,9 +52,9 @@ def parse_terms(expr: str) -> list[Term]:
         match = TERM_RE.match(part)
         if not match:
             raise ValueError(f"Could not parse term: {part!r}")
-        sign, precision, count, die, label = match.groups()
+        sign, extra, count, die, label = match.groups()
         count = -int(count) if sign == "-" else int(count)
-        terms.append(Term(label, count, int(die) if die else None, bool(precision)))
+        terms.append(Term(label, count, int(die) if die else None, bool(extra)))
     return terms
 
 
@@ -70,7 +71,7 @@ class TermRoll:
     """
 
     label: str
-    precision: bool
+    extra: bool
     rolls: tuple[int, ...] = ()
     flat: int = 0
 
@@ -90,8 +91,8 @@ def roll_term(term: Term, sets: int = 1, dice: Dice = default_dice) -> TermRoll:
     if term.die:
         sign = -1 if count < 0 else 1
         rolls = tuple(sign * dice(term.die) for _ in range(abs(count)))
-        return TermRoll(term.label, term.precision, rolls=rolls)
-    return TermRoll(term.label, term.precision, flat=count)
+        return TermRoll(term.label, term.extra, rolls=rolls)
+    return TermRoll(term.label, term.extra, flat=count)
 
 
 @dataclass(frozen=True, repr=False)
@@ -124,22 +125,11 @@ class Damage:
     __repr__ = __str__
 
 
-def roll_damage(
-    terms: list[Term], crit_mult: int = 1, dice: Dice = default_dice
-) -> tuple[Damage, Damage]:
-    """Roll parsed terms, returning (normal damage, extra damage on a crit).
-
-    The crit extra holds `crit_mult - 1` additional sets of each non-precision
-    term, so normal + extra is the full critical damage.
-    """
-    normal = Damage(tuple(roll_term(t, dice=dice) for t in terms))
-    extra = Damage(
-        tuple(roll_term(t, crit_mult - 1, dice) for t in terms if not t.precision)
-    )
-    return normal, extra
+def roll_damage(terms: list[Term], dice: Dice = default_dice) -> Damage:
+    """Roll each parsed term once."""
+    return Damage(tuple(roll_term(t, dice=dice) for t in terms))
 
 
 def roll(expr: str, dice: Dice = default_dice) -> str:
     """Roll a damage expression once and return the breakdown text."""
-    normal, _ = roll_damage(parse_terms(expr), dice=dice)
-    return str(normal)
+    return str(roll_damage(parse_terms(expr), dice))
