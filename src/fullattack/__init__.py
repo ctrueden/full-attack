@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, field, replace
 from random import randint
 
-TERM_RE = re.compile(r'^(~)?(\d+)(?:d(\d+))?\s+(.+)$')
+TERM_RE = re.compile(r"^(~)?(\d+)(?:d(\d+))?\s+(.+)$")
 
 
 def parse_terms(expr: str) -> list[dict]:
@@ -18,7 +18,7 @@ def parse_terms(expr: str) -> list[dict]:
     Raises ValueError if a term cannot be parsed.
     """
     terms = []
-    for part in expr.split('+'):
+    for part in expr.split("+"):
         part = part.strip()
         if not part:
             continue
@@ -26,12 +26,14 @@ def parse_terms(expr: str) -> list[dict]:
         if not match:
             raise ValueError(f"Could not parse term: {part!r}")
         precision, count, die, label = match.groups()
-        terms.append({
-            'precision': bool(precision),
-            'count': int(count),
-            'die': int(die) if die else None,
-            'label': label,
-        })
+        terms.append(
+            {
+                "precision": bool(precision),
+                "count": int(count),
+                "die": int(die) if die else None,
+                "label": label,
+            }
+        )
     return terms
 
 
@@ -53,17 +55,19 @@ class TermRoll:
     def value(self) -> int:
         return sum(self.rolls) + self.flat
 
-    def __add__(self, other: 'TermRoll') -> 'TermRoll':
-        return replace(self, rolls=self.rolls + other.rolls, flat=self.flat + other.flat)
+    def __add__(self, other: "TermRoll") -> "TermRoll":
+        return replace(
+            self, rolls=self.rolls + other.rolls, flat=self.flat + other.flat
+        )
 
 
 def roll_term(term: dict, sets: int = 1) -> TermRoll:
     """Roll one parsed term `sets` times over (e.g. 2d6 with sets=2 rolls 4d6)."""
-    count = term['count'] * sets
-    if term['die']:
-        rolls = tuple(randint(1, term['die']) for _ in range(count))
-        return TermRoll(term['label'], term['precision'], rolls=rolls)
-    return TermRoll(term['label'], term['precision'], flat=count)
+    count = term["count"] * sets
+    if term["die"]:
+        rolls = tuple(randint(1, term["die"]) for _ in range(count))
+        return TermRoll(term["label"], term["precision"], rolls=rolls)
+    return TermRoll(term["label"], term["precision"], flat=count)
 
 
 @dataclass(frozen=True, repr=False)
@@ -76,11 +80,11 @@ class Damage:
     def total(self) -> int:
         return sum(t.value for t in self.terms)
 
-    def without(self, *labels: str) -> 'Damage':
+    def without(self, *labels: str) -> "Damage":
         """Return a copy omitting terms whose labels contain any of the given strings."""
         return Damage(tuple(t for t in self.terms if not _matches(t.label, labels)))
 
-    def __add__(self, other: 'Damage') -> 'Damage':
+    def __add__(self, other: "Damage") -> "Damage":
         """Combine two damages term by term, merging terms with the same label."""
         merged = {t.label: t for t in self.terms}
         for t in other.terms:
@@ -89,9 +93,9 @@ class Damage:
 
     def __str__(self) -> str:
         lines = [f"{t.value:3d}  {t.label}" for t in self.terms]
-        lines.append('-' * 20)
+        lines.append("-" * 20)
         lines.append(f"{self.total:3d}  Total")
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     __repr__ = __str__
 
@@ -103,9 +107,9 @@ def roll_damage(terms: list[dict], crit_mult: int = 1) -> tuple[Damage, Damage]:
     term, so normal + extra is the full critical damage.
     """
     normal = Damage(tuple(roll_term(t) for t in terms))
-    extra = Damage(tuple(
-        roll_term(t, crit_mult - 1) for t in terms if not t['precision']
-    ))
+    extra = Damage(
+        tuple(roll_term(t, crit_mult - 1) for t in terms if not t["precision"])
+    )
     return normal, extra
 
 
@@ -147,7 +151,7 @@ class AttackOutcome:
     def crit_damage(self) -> Damage:
         return self.damage + self.crit_extra
 
-    def without(self, *labels: str) -> 'AttackOutcome':
+    def without(self, *labels: str) -> "AttackOutcome":
         """Return a copy omitting damage terms whose labels contain any of the given strings."""
         return replace(
             self,
@@ -161,10 +165,12 @@ class AttackOutcome:
         lines.append("Damage:")
         lines.append(str(self.damage))
         if self.threatened:
-            lines.append(f"Crit confirm: d20({self.confirm_d20}) + {self.bonus} = {self.confirm_total}")
+            lines.append(
+                f"Crit confirm: d20({self.confirm_d20}) + {self.bonus} = {self.confirm_total}"
+            )
             lines.append(f"Critical damage (x{self.crit_mult}):")
             lines.append(str(self.crit_damage))
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     __repr__ = __str__
 
@@ -204,15 +210,15 @@ class AttackSequence:
     hits: frozenset[int] | None = None
     crits: frozenset[int] = field(default_factory=frozenset)
 
-    def hit(self, *nums: int) -> 'AttackSequence':
+    def hit(self, *nums: int) -> "AttackSequence":
         """Return a copy where only the given attacks (plus any crits) hit."""
         return replace(self, hits=frozenset(nums))
 
-    def crit(self, *nums: int) -> 'AttackSequence':
+    def crit(self, *nums: int) -> "AttackSequence":
         """Return a copy where the given attacks are confirmed crits (and thus hits)."""
         return replace(self, crits=frozenset(nums))
 
-    def without(self, *labels: str) -> 'AttackSequence':
+    def without(self, *labels: str) -> "AttackSequence":
         """Return a copy omitting damage terms whose labels contain any of the given strings."""
         return replace(self, outcomes=tuple(o.without(*labels) for o in self.outcomes))
 
@@ -223,9 +229,7 @@ class AttackSequence:
         """List (number, outcome, is_crit) for each attack that hit."""
         hits = (self.hits or frozenset()) | self.crits
         return [
-            (n, o, n in self.crits)
-            for n, o in enumerate(self.outcomes, 1)
-            if n in hits
+            (n, o, n in self.crits) for n, o in enumerate(self.outcomes, 1) if n in hits
         ]
 
     @property
@@ -238,15 +242,15 @@ class AttackSequence:
 
     def __str__(self) -> str:
         if self.hits is None and not self.crits:
-            return '\n\n'.join(f"#{n} {o}" for n, o in enumerate(self.outcomes, 1))
+            return "\n\n".join(f"#{n} {o}" for n, o in enumerate(self.outcomes, 1))
         lines = []
         for n, o, is_crit in self._landed():
             dmg = o.crit_damage if is_crit else o.damage
             crit_note = f" (crit x{o.crit_mult})" if is_crit else ""
             lines.append(f"#{n} {o.label}{crit_note}: {dmg.total}")
-        lines.append('=' * 20)
+        lines.append("=" * 20)
         lines.append(str(self.damage))
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     __repr__ = __str__
 
@@ -267,7 +271,9 @@ def attack(attacks: list[tuple]) -> AttackSequence:
     return AttackSequence(tuple(outcomes))
 
 
-def full_attack(att_strike: int, dmg_strike: str, att_shield: int, dmg_shield: str) -> AttackSequence:
+def full_attack(
+    att_strike: int, dmg_strike: str, att_shield: int, dmg_shield: str
+) -> AttackSequence:
     """Resolve Allister's full attack routine.
 
     Interleaves unarmed strikes and shield bashes at iterative penalties,
@@ -275,15 +281,20 @@ def full_attack(att_strike: int, dmg_strike: str, att_shield: int, dmg_shield: s
     Takes the base attack bonus and damage expression for each weapon.
     """
     attacks = [
-      ("First unarmed strike",  att_strike -  0, dmg_strike, 19),
-      ("First shield bash",     att_shield -  0, dmg_shield, 19), # shield master feat waives -2 TWF penalty
-      ("Second unarmed strike", att_strike -  5, dmg_strike, 19),
-      ("Second shield bash",    att_shield -  5, dmg_shield, 19),
-      ("Third unarmed strike",  att_strike - 10, dmg_strike, 19),
-      ("Third shield bash",     att_shield - 10, dmg_shield, 19),
-      ("Fourth unarmed strike", att_strike - 15, dmg_strike, 19),
-      ("Eternal defender slam", att_shield -  5, dmg_shield, 19), # Slam ability
-      ("Haste attack",          att_strike -  0, dmg_strike, 19),
+        ("First unarmed strike", att_strike - 0, dmg_strike, 19),
+        (
+            "First shield bash",
+            att_shield - 0,
+            dmg_shield,
+            19,
+        ),  # shield master feat waives -2 TWF penalty
+        ("Second unarmed strike", att_strike - 5, dmg_strike, 19),
+        ("Second shield bash", att_shield - 5, dmg_shield, 19),
+        ("Third unarmed strike", att_strike - 10, dmg_strike, 19),
+        ("Third shield bash", att_shield - 10, dmg_shield, 19),
+        ("Fourth unarmed strike", att_strike - 15, dmg_strike, 19),
+        ("Eternal defender slam", att_shield - 5, dmg_shield, 19),  # Slam ability
+        ("Haste attack", att_strike - 0, dmg_strike, 19),
     ]
     return attack(attacks)
 
