@@ -21,7 +21,11 @@ bonus = 8
 damage = "1d4 dagger"
 
 [routines]
-full = [{ weapon = "axe" }, { weapon = "dagger", step = 1, label = "Off hand" }]
+full = [
+  { weapon = "axe" },
+  { weapon = "dagger", step = 1, label = "Off hand" },
+  { weapon = "axe", label = "Haste", buff = "haste" },
+]
 
 [buffs.rage]
 active = true
@@ -29,6 +33,16 @@ damage = "2 rage"
 
 [buffs.bless]
 damage = { axe = "1 bless" }
+
+[buffs.focus]
+attack = { dagger = 3 }
+crit_damage = "1d4 bleed"
+
+[buffs.haste]
+attack = 1
+
+[conditions.shaken]
+attack = -2
 """)
 
 
@@ -52,7 +66,7 @@ def test_buff_toggles(script):
     o = c.attack("axe", buffs="-rage", dice=script(12, 5, 4, 1, 1))[1]
     assert [t.label for t in o.damage.terms] == ["axe", "frost"]
     with pytest.raises(ValueError, match="Unknown buff"):
-        c.buff("haste")
+        c.buff("bardsong")
 
 
 def test_single_weapon_attack(script):
@@ -77,6 +91,9 @@ def test_unknown_name():
         ({"weapons": {"axe": {"keen": True}}}, "invalid pf1 weapon rules"),
         ({"routines": {"full": [{"weapon": "bow"}]}}, "unknown weapon 'bow'"),
         ({"buffs": {"bless": {"damage": {"bow": "1 bless"}}}}, "unknown weapon"),
+        ({"buffs": {"bless": {"attack": {"bow": 1}}}}, "unknown weapon"),
+        ({"routines": {"full": [{"weapon": "axe", "buff": "x"}]}}, "unknown buff"),
+        ({"conditions": {"rage": {}}}, "already defined"),
     ],
 )
 def test_config_errors(change, error):
@@ -88,7 +105,10 @@ def test_load_example():
     allister = load(EXAMPLE)
     assert allister.name == "Allister"
     assert len(allister.routines["full"]) == 9
-    assert [o.bonus for o in allister.full()] == [25, 25, 20, 20, 15, 15, 10, 20, 25]
+    # Base +37/+34, with power attack (-5), haste (+1), and good hope (+2).
+    assert [o.bonus for o in allister.full()] == [35, 32, 30, 27, 25, 22, 20, 27, 35]
+    unhasted = allister.full(buffs="-haste")
+    assert len(unhasted) == 8 and unhasted[-1].label == "Eternal defender slam"
 
 
 def test_load_by_name(tmp_path, monkeypatch):
@@ -101,3 +121,34 @@ def test_load_by_name(tmp_path, monkeypatch):
 
 def test_load_without_suffix():
     assert load(EXAMPLE.with_suffix("")).name == "Allister"
+
+
+def test_attack_modifiers(script):
+    c = parse_character(CHARACTER)
+    assert [o.bonus for o in c.full(buffs="haste", dice=script(*[1] * 30))] == [
+        11,
+        4,
+        11,
+    ]
+    fa = c.full(buffs=["focus", "shaken"], bonus={"axe": 5}, dice=script(*[1] * 30))
+    assert [o.bonus for o in fa] == [13, 4]
+    assert c.dagger(bonus=-1, dice=script(*[1] * 9))[1].bonus == 7
+
+
+def test_crit_only_damage(script):
+    c = parse_character(CHARACTER)
+    # d20, 1d4 dagger, crit extra 1d4, then crit-only 1d4 bleed
+    o = c.dagger(buffs=["focus", "-rage"], dice=script(5, 2, 3, 4))[1]
+    assert [t.label for t in o.damage.terms] == ["dagger"]
+    assert [(t.label, t.value) for t in o.crit_damage.terms] == [
+        ("dagger", 5),
+        ("bleed", 4),
+    ]
+
+
+def test_summary():
+    text = str(parse_character(CHARACTER, "Grog").buff("haste"))
+    assert "Weapons:    axe +11, dagger +9" in text
+    assert "Active:     rage, haste" in text
+    assert "Buffs:      bless, focus" in text
+    assert "Conditions: shaken" in text

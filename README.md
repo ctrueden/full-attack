@@ -35,10 +35,17 @@ uv run python -i -c "from fullattack import *; al = load('allister')"
 ```python
 >>> al
 Allister (pf1)
-Weapons:  strike +25, shield +25
-Routines: full (9)
-Buffs:    [x] good hope  [x] power attack
+Weapons:    strike +35, shield +32
+Routines:   full (9)
+Active:     merciful, power attack, haste, good hope
+Buffs:      flanking, held ground, combat expertise, fighting defensively,
+            defensive crane, housing spirit, corrupted outsider, death mark,
+            challenge, sanctified heroism, greater heroism, smite, tiger style
+Conditions: dazzled, entangled, exhausted, fatigued, frightened, invisible,
+            prone, shaken, sickened
 ```
+
+The weapon bonuses shown include the active buffs and conditions.
 
 ## A combat round
 
@@ -47,29 +54,29 @@ Buffs:    [x] good hope  [x] power attack
 ```python
 >>> fa = al.full()
 >>> fa
-#1 First unarmed strike: d20(11) + 25 = 36
+#1 First unarmed strike: d20(11) + 35 = 46
 Damage:
  10  monk
-  6  merciful
-  2  holy
- 28  sneak attack
+  7  holy
+ 25  sneak attack
   2  strength
   2  martial training
   5  magic
-  2  good hope
+  4  merciful
  10  power attack
+  2  good hope
 --------------------
  67  Total
 
-#2 First shield bash: d20(8) + 25 = 33
+#2 First shield bash: d20(8) + 32 = 40
 ...
 
-#6 Third shield bash: d20(20) + 15 = 35 (auto-hit)
+#6 Third shield bash: d20(20) + 22 = 42 (auto-hit)
 Damage:
 ...
 --------------------
  46  Total
-Crit confirm: d20(3) + 15 = 18
+Crit confirm: d20(3) + 22 = 25
 Critical damage (x2):
 ...
 --------------------
@@ -97,14 +104,14 @@ To look at a single attack again, use `fa[6]` (`fa[-1]` is the last one).
 #6 Third shield bash (crit x2): 62
 ====================
  10  monk
-  6  merciful
-  2  holy
-132  sneak attack
+  7  holy
+129  sneak attack
   6  strength
   2  martial training
  25  magic
- 10  good hope
+  4  merciful
  30  power attack
+ 10  good hope
   8  weapon
 --------------------
 231  Total
@@ -163,31 +170,42 @@ the crit range and multiplier:
 >>> one_attack(18, "1d12 greataxe + 7 strength", 20, 3)
 ```
 
-## Buffs
+## Buffs, conditions, and circumstances
 
-Buffs are named groups of damage terms you can switch on and off. Checked
-buffs (`[x]` in the character summary) are active.
+Buffs and conditions are named sets of modifiers you can switch on and off:
+to attack bonuses, to damage, and to damage on a crit only. The character
+summary lists which ones are active.
 
 For one roll only:
 
 ```python
 >>> al.full(buffs="-power attack")
->>> al.full(buffs=["bless", "-power attack"])
+>>> al.full(buffs=["smite", "flanking", "shaken"])
 ```
 
 For the rest of the fight, until you change it back:
 
 ```python
->>> al = al.buff("-power attack")
->>> al = al.buff("power attack")
+>>> al = al.buff("held ground", "-haste")
+>>> al = al.buff("-held ground", "haste")
 ```
 
-A name on its own (or with `+`) switches a buff on; a leading `-` switches it
-off.
+A name on its own (or with `+`) switches a buff on, and a leading `-`
+switches it off. Conditions toggle exactly the same way.
 
-Buffs only change **damage**. Attack bonuses in the character file are your
-final numbers, so if a buff changes your to-hit (power attack, haste, good
-hope), adjust the bonuses yourself or keep a separate character file.
+Switching off haste also drops the haste attack from the routine.
+
+For a one-off circumstance that isn't worth a buff, adjust the attack bonus
+for one roll, either for every weapon or per weapon:
+
+```python
+>>> al.full(bonus=2)
+>>> al.full(bonus={"shield": -2})
+```
+
+full-attack doesn't know the stacking rules: if two buffs don't stack (say,
+two morale bonuses), don't switch both on. The same goes for alternatives
+like `fighting defensively` and `defensive crane`.
 
 ## Writing a character file
 
@@ -205,7 +223,7 @@ name = "Grog"        # optional; defaults to the file name
 system = "pf1"       # "3.0", "3.5" or "pf1"
 
 [weapons.axe]
-bonus = 18           # your full attack bonus with this weapon
+bonus = 18           # attack bonus, before buffs and conditions
 damage = "1d12 greataxe + ~1d6 flaming + 7 strength"
 crit_range = 20      # threatens on 20 (the default)
 crit_mult = 3        # x3 damage on a crit (default x2)
@@ -220,14 +238,22 @@ full = [
   { weapon = "axe", step = 1, label = "Greataxe (iterative)" },
   { weapon = "axe", step = 2 },
   { weapon = "bite" },
+  { weapon = "axe", label = "Haste", buff = "haste" },
 ]
 
 [buffs.rage]
 active = true                      # on when the character loads
-damage = { axe = "3 rage" }        # per weapon...
+attack = 2                         # a value for every weapon...
+damage = { axe = "3 rage", bite = "1 rage" }  # ...or one per weapon
 
-[buffs.bless]
-damage = "1 bless"                 # ...or a string for every weapon
+[buffs.haste]
+attack = 1
+
+[buffs."vicious strikes"]
+crit_damage = { axe = "1d6 bleed" }  # added on a crit only
+
+[conditions.shaken]
+attack = -2
 ```
 
 **Weapons.** Each one needs a `bonus` and a `damage` expression. In 3.x,
@@ -239,9 +265,14 @@ iterative attack number, counting from 0: in 3.x each step takes another
 −5 (step 1 is −5, step 2 is −10, and so on), and step defaults to 0. `label`
 names the attack in the output (it defaults to the weapon name). Each
 routine is also a method: `grog.full()`. A routine and a weapon can't share
-a name.
+a name. An entry with a `buff` is only rolled while that buff is active.
 
-**Buffs.** Use `damage` and optionally `active`, as above.
+**Buffs and conditions** can set `attack` (a number), `damage` and
+`crit_damage` (expressions), and `active`. Each of these except `active`
+can be a single value for every weapon or a table of values per weapon.
+`crit_damage` is added to critical damage as is, without being multiplied.
+Conditions go in `[conditions.NAME]` and work the same way as buffs; they
+are just listed separately. Each name must be unique across both.
 
 Mistakes are reported with their location, e.g.
 `grog.toml: weapons.axe.damage: Could not parse term: 'oops'`.

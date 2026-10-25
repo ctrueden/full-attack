@@ -1,3 +1,4 @@
+import textwrap
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -9,7 +10,7 @@ from .systems import GameSystem
 
 @dataclass(frozen=True)
 class Weapon:
-    """A weapon's final attack bonus, base damage, and game-system rules."""
+    """A weapon's base attack bonus, base damage, and game-system rules."""
 
     name: str
     bonus: int
@@ -19,27 +20,36 @@ class Weapon:
 
 @dataclass(frozen=True)
 class RoutineEntry:
-    """One attack in a routine: which weapon, at which iterative step."""
+    """One attack in a routine: which weapon, at which iterative step.
+
+    An entry with a `buff` is only rolled while that buff is active.
+    """
 
     weapon: str
     step: int = 0
     label: str | None = None
+    buff: str | None = None
 
 
 @dataclass(frozen=True)
 class Buff:
-    """A named group of damage terms that can be switched on and off.
+    """A named set of modifiers that can be switched on and off.
 
-    Maps each weapon name to the terms the buff adds to it.
+    Each field maps a weapon name to what the buff adds to that weapon:
+    to its attack bonus, its damage, and its damage on a critical hit only.
+    A condition (like shaken) works the same way as a buff.
     """
 
     name: str
-    damage: dict[str, tuple[Term, ...]]
+    attack: dict[str, int] = field(default_factory=dict)
+    damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
+    crit_damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
+    condition: bool = False
 
 
 @dataclass(frozen=True, repr=False)
 class Character:
-    """A character's weapons, attack routines, and buffs.
+    """A character's weapons, attack routines, buffs, and conditions.
 
     Each routine and weapon can be rolled by name, either via `attack`
     or as a method, e.g. `allister.full()` or `allister.strike()`.
@@ -52,8 +62,10 @@ class Character:
     buffs: dict[str, Buff] = field(default_factory=dict)
     active: frozenset[str] = frozenset()
 
-    def _toggled(self, toggles: tuple[str, ...]) -> frozenset[str]:
+    def _toggled(self, toggles: str | Iterable[str]) -> frozenset[str]:
         """Apply toggles like "bless" (on) or "-power attack" (off) to the active buffs."""
+        if isinstance(toggles, str):
+            toggles = (toggles,)
         active = set(self.active)
         for toggle in toggles:
             on = not toggle.startswith("-")
@@ -68,18 +80,23 @@ class Character:
         """Return a copy with buffs switched on ("bless") or off ("-bless")."""
         return replace(self, active=self._toggled(toggles))
 
+    def _bonus(self, weapon: Weapon, active: list[Buff]) -> int:
+        """A weapon's attack bonus with the given buffs, before iterative penalties."""
+        return weapon.bonus + sum(b.attack.get(weapon.name, 0) for b in active)
+
     def attack(
         self,
         name: str,
         buffs: str | Iterable[str] = (),
+        bonus: int | dict[str, int] = 0,
         dice: Dice = default_dice,
     ) -> AttackSequence:
         """Roll a routine, or a single attack with a weapon, by name.
 
         `buffs` toggles buffs for this roll only, as with `buff`.
+        `bonus` adjusts every attack's bonus for this roll only, or just
+        some weapons' bonuses, e.g. `{"shield": -2}`.
         """
-        if isinstance(buffs, str):
-            buffs = (buffs,)
         if name in self.routines:
             entries = self.routines[name]
         elif name in self.weapons:
@@ -87,21 +104,33 @@ class Character:
         else:
             known = ", ".join([*self.routines, *self.weapons])
             raise ValueError(f"Unknown routine or weapon {name!r} (known: {known})")
-        toggled = self._toggled(tuple(buffs))
+        if isinstance(bonus, int):
+            bonus = dict.fromkeys(self.weapons, bonus)
+        for weapon in bonus:
+            if weapon not in self.weapons:
+                raise ValueError(f"Unknown weapon {weapon!r} in bonus")
+        toggled = self._toggled(buffs)
         active = [b for b in self.buffs.values() if b.name in toggled]
         outcomes = []
         for entry in entries:
+            if entry.buff and entry.buff not in toggled:
+                continue
             weapon = self.weapons[entry.weapon]
             terms = list(weapon.damage)
+            crit_terms = []
             for b in active:
                 terms.extend(b.damage.get(weapon.name, ()))
+                crit_terms.extend(b.crit_damage.get(weapon.name, ()))
             outcomes.append(
                 one_attack(
-                    weapon.bonus + self.system.penalty(entry.step, weapon.rules),
+                    self._bonus(weapon, active)
+                    + bonus.get(weapon.name, 0)
+                    + self.system.penalty(entry.step, weapon.rules),
                     terms,
                     label=entry.label or weapon.name,
                     system=self.system,
                     rules=weapon.rules,
+                    crit_only=crit_terms,
                     dice=dice,
                 )
             )
@@ -113,7 +142,9 @@ class Character:
         if name in self.__dict__.get("routines", {}) or name in self.__dict__.get(
             "weapons", {}
         ):
-            return lambda buffs=(), dice=default_dice: self.attack(name, buffs, dice)
+            return lambda buffs=(), bonus=0, dice=default_dice: self.attack(
+                name, buffs, bonus, dice
+            )
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {name!r}"
         )
@@ -122,16 +153,30 @@ class Character:
         return [*super().__dir__(), *self.routines, *self.weapons]
 
     def __str__(self) -> str:
-        weapons = ", ".join(f"{w.name} {w.bonus:+d}" for w in self.weapons.values())
-        routines = ", ".join(f"{n} ({len(r)})" for n, r in self.routines.items())
-        buffs = "  ".join(
-            f"[{'x' if b in self.active else ' '}] {b}" for b in self.buffs
+        active = [b for b in self.buffs.values() if b.name in self.active]
+        weapons = ", ".join(
+            f"{w.name} {self._bonus(w, active):+d}" for w in self.weapons.values()
         )
-        lines = [f"{self.name} ({self.system.name})", f"Weapons:  {weapons}"]
-        if routines:
-            lines.append(f"Routines: {routines}")
-        if buffs:
-            lines.append(f"Buffs:    {buffs}")
+        routines = ", ".join(f"{n} ({len(r)})" for n, r in self.routines.items())
+        inactive = [b for b in self.buffs.values() if b.name not in self.active]
+        rows = [
+            ("Weapons", weapons),
+            ("Routines", routines),
+            ("Active", ", ".join(b.name for b in active)),
+            ("Buffs", ", ".join(b.name for b in inactive if not b.condition)),
+            ("Conditions", ", ".join(b.name for b in inactive if b.condition)),
+        ]
+        lines = [f"{self.name} ({self.system.name})"]
+        for heading, text in rows:
+            if text:
+                lines.append(
+                    textwrap.fill(
+                        text,
+                        width=79,
+                        initial_indent=f"{heading + ':':12}",
+                        subsequent_indent=" " * 12,
+                    )
+                )
         return "\n".join(lines)
 
     __repr__ = __str__

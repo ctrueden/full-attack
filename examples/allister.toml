@@ -1,19 +1,20 @@
 # Allister, a high-level Pathfinder 1E monk.
 #
-# Attack bonuses are final values, before iterative penalties; each routine
-# entry's `step` applies the system's iterative penalty (-5 per step in PF1).
-# Damage terms marked ~ are "extra" dice, never multiplied on a PF1 crit.
+# Weapon bonuses are base values, before any of the buffs or conditions
+# below; each routine entry's `step` applies the system's iterative penalty
+# (-5 per step in PF1). Damage terms marked ~ are "extra" dice, never
+# multiplied on a PF1 crit.
 
 name = "Allister"
 system = "pf1"
 
 [weapons.strike]
-bonus = 25
-damage = "2d10 monk + ~1d6 merciful + ~2d6 holy + ~10d6 sneak attack + 2 strength + 2 martial training + 5 magic"
+bonus = 37
+damage = "2d10 monk + ~2d6 holy + ~10d6 sneak attack + 2 strength + 2 martial training + 5 magic"
 crit_range = 19
 
 [weapons.shield]
-bonus = 25
+bonus = 34
 damage = "1d4 weapon + ~10d6 sneak attack + 1 strength + 5 magic"
 crit_range = 19
 
@@ -27,13 +28,95 @@ full = [
   { weapon = "shield", step = 2, label = "Third shield bash" },
   { weapon = "strike", step = 3, label = "Fourth unarmed strike" },
   { weapon = "shield", step = 1, label = "Eternal defender slam" },  # Slam ability
-  { weapon = "strike", label = "Haste attack" },
+  { weapon = "strike", label = "Haste attack", buff = "haste" },
 ]
 
-[buffs."good hope"]
+# A number or expression applies to every weapon; a table gives one per weapon.
+
+[buffs.merciful]
 active = true
-damage = "2 good hope"  # a string applies to every weapon
+damage = { strike = "~1d6 merciful" }
 
 [buffs."power attack"]
 active = true
-damage = { strike = "10 power attack", shield = "5 power attack" }
+attack = -5
+damage = { strike = "10 power attack", shield = "5 power attack" }  # off-hand: half
+
+[buffs.haste]
+active = true
+attack = 1
+
+[buffs."good hope"]
+active = true
+attack = 2
+damage = "2 good hope"
+
+[buffs.flanking]
+attack = 2
+
+[buffs."held ground"]
+attack = 2  # +4 morale to Str and Dex
+damage = { strike = "2 held ground", shield = "1 held ground" }  # off-hand: half Str
+
+[buffs."combat expertise"]
+attack = -5
+
+[buffs."fighting defensively"]
+attack = -4
+
+[buffs."defensive crane"]  # fighting defensively in crane stance
+attack = -1
+
+[buffs."housing spirit"]
+attack = 1
+
+[buffs."corrupted outsider"]
+attack = 2
+damage = "2 corrupted outsider"
+
+[buffs."death mark"]
+attack = 12
+damage = "12 death mark"
+
+[buffs.challenge]
+attack = 2
+
+[buffs."sanctified heroism"]
+attack = 2
+
+[buffs."greater heroism"]
+attack = 4
+
+[buffs.smite]
+attack = 6
+damage = "20 smite"
+
+[buffs."tiger style"]
+crit_damage = "1d4 bleed"
+
+[conditions.dazzled]
+attack = -1
+
+[conditions.entangled]
+attack = -4  # -2 entangled, -2 from the -4 Dex penalty
+
+[conditions.exhausted]
+attack = -3  # -6 Dex
+
+[conditions.fatigued]
+attack = -1  # -2 Dex
+
+[conditions.frightened]
+attack = -2
+
+[conditions.invisible]
+attack = 2
+
+[conditions.prone]
+attack = -4  # melee only
+
+[conditions.shaken]
+attack = -2
+
+[conditions.sickened]
+attack = -2

@@ -53,9 +53,23 @@ def _check_keys(where: str, table: dict, allowed: set[str]) -> None:
         raise ValueError(f"{where}: unknown keys {', '.join(sorted(unknown))}")
 
 
+def _per_weapon(where: str, value: Any, weapons: dict) -> dict[str, Any]:
+    """Expand a value for every weapon, or check a table of values per weapon."""
+    if not isinstance(value, dict):
+        return dict.fromkeys(weapons, value)
+    for weapon in value:
+        if weapon not in weapons:
+            raise ValueError(f"{where}: unknown weapon {weapon!r}")
+    return value
+
+
 def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
     """Build a character from parsed TOML data; see examples/allister.toml."""
-    _check_keys("top level", data, {"name", "system", "weapons", "routines", "buffs"})
+    _check_keys(
+        "top level",
+        data,
+        {"name", "system", "weapons", "routines", "buffs", "conditions"},
+    )
     if "system" not in data:
         raise ValueError('missing game system, e.g. system = "pf1"')
     system = get_system(data["system"])
@@ -77,34 +91,43 @@ def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
             rules,
         )
 
+    buffs = {}
+    active = set()
+    for section in ("buffs", "conditions"):
+        for name, table in data.get(section, {}).items():
+            where = f"{section}.{name}"
+            if name in buffs:
+                raise ValueError(f"{where}: already defined in buffs")
+            _check_keys(where, table, {"active", "attack", "damage", "crit_damage"})
+            attack = _per_weapon(f"{where}.attack", table.get("attack", {}), weapons)
+            damage = {}
+            for key in ("damage", "crit_damage"):
+                exprs = _per_weapon(f"{where}.{key}", table.get(key, {}), weapons)
+                damage[key] = {
+                    w: _terms(f"{where}.{key}.{w}", e) for w, e in exprs.items()
+                }
+            buffs[name] = Buff(
+                name,
+                attack,
+                damage["damage"],
+                damage["crit_damage"],
+                condition=section == "conditions",
+            )
+            if table.get("active", False):
+                active.add(name)
+
     routines = {}
     for name, entries in data.get("routines", {}).items():
         routine = []
         for i, entry in enumerate(entries, 1):
             where = f"routines.{name} #{i}"
-            _check_keys(where, entry, {"weapon", "step", "label"})
+            _check_keys(where, entry, {"weapon", "step", "label", "buff"})
             if entry.get("weapon") not in weapons:
                 raise ValueError(f"{where}: unknown weapon {entry.get('weapon')!r}")
+            if "buff" in entry and entry["buff"] not in buffs:
+                raise ValueError(f"{where}: unknown buff {entry['buff']!r}")
             routine.append(RoutineEntry(**entry))
         routines[name] = tuple(routine)
-
-    buffs = {}
-    active = set()
-    for name, table in data.get("buffs", {}).items():
-        where = f"buffs.{name}"
-        _check_keys(where, table, {"damage", "active"})
-        damage = table.get("damage", {})
-        if isinstance(damage, str):
-            damage = dict.fromkeys(weapons, damage)
-        for weapon in damage:
-            if weapon not in weapons:
-                raise ValueError(f"{where}: unknown weapon {weapon!r}")
-        buffs[name] = Buff(
-            name,
-            {w: _terms(f"{where}.damage.{w}", e) for w, e in damage.items()},
-        )
-        if table.get("active", False):
-            active.add(name)
 
     clash = set(routines) & set(weapons)
     if clash:

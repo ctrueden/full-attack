@@ -76,6 +76,7 @@ def one_attack(
     label: str | None = None,
     system: GameSystem | str = "pf1",
     rules: Any = None,
+    crit_only: str | list[Term] = (),
     dice: Dice = default_dice,
     **rule_kwargs: Any,
 ) -> AttackOutcome:
@@ -85,10 +86,12 @@ def one_attack(
     player can pick whichever applies. `damage` is an expression or parsed
     terms. Unless `rules` is given, remaining arguments build the system's
     weapon rules, e.g. `one_attack(20, "1d8 axe", 20, 3)` for a 3.x weapon
-    threatening on 20 with a x3 multiplier.
+    threatening on 20 with a x3 multiplier. `crit_only` terms are added to
+    the critical damage only, unmultiplied.
 
     Dice are rolled in this order: the to-hit d20, any crit confirmation
-    the system needs, the normal damage, then the critical damage (always).
+    the system needs, the normal damage, then the critical damage (always),
+    then the `crit_only` terms.
     """
     system = get_system(system)
     if rules is None:
@@ -97,7 +100,11 @@ def one_attack(
     d20 = dice(20)
     check = system.check(d20, rules, dice)
     damage = roll_damage(terms, dice)
-    crit_damage = system.crit_damage(terms, damage, rules, dice)
+    if isinstance(crit_only, str):
+        crit_only = parse_terms(crit_only)
+    crit_damage = system.crit_damage(terms, damage, rules, dice) + roll_damage(
+        list(crit_only), dice
+    )
     return AttackOutcome(
         label, bonus, d20, check, damage, crit_damage, system.crit_note(rules)
     )
