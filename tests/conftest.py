@@ -1,5 +1,15 @@
 import pytest
 
+from fullattack import set_theme
+
+
+@pytest.fixture(autouse=True)
+def plain_theme():
+    """Keep test output free of terminal colors, unless a test sets a theme."""
+    set_theme("plain")
+    yield
+    set_theme(None)
+
 
 def scripted(*values: int):
     """Return a die roller that yields the given values in order."""

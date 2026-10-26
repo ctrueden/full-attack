@@ -12,4 +12,5 @@ from .dice import (
     roll_damage,
     roll_term,
 )
+from .style import THEMES, Theme, set_theme, theme
 from .systems import SYSTEMS, Check, GameSystem, get_system

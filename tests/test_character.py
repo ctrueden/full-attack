@@ -199,3 +199,15 @@ def test_buff_operators():
         c + 3
     with pytest.raises(ValueError, match="Unknown buff or condition"):
         c += "bardsong"
+
+
+def test_summary_dims_inactive():
+    from fullattack import set_theme
+
+    set_theme("dark")
+    lines = str(parse_character(CHARACTER, "Grog")).split("\n")
+    assert (
+        lines[-2]
+        == "Buffs:      \x1b[38;5;242mbless, focus, haste, flanking, outflanking\x1b[0m"
+    )
+    assert "\x1b[" not in lines[3]  # Active

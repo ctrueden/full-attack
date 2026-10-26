@@ -5,6 +5,7 @@ from typing import Any
 
 from .attack import AttackSequence, one_attack
 from .dice import Dice, Term, default_dice
+from .style import paint, theme
 from .systems import GameSystem
 
 
@@ -196,24 +197,21 @@ class Character:
         )
         routines = ", ".join(f"{n} ({len(r)})" for n, r in self.routines.items())
         inactive = [b for b in self.buffs.values() if b.name not in self.active]
+        dim = theme().dim
         rows = [
-            ("Weapons", weapons),
-            ("Routines", routines),
-            ("Active", ", ".join(b.name for b in active)),
-            ("Buffs", ", ".join(b.name for b in inactive if not b.condition)),
-            ("Conditions", ", ".join(b.name for b in inactive if b.condition)),
+            ("Weapons", weapons, ""),
+            ("Routines", routines, ""),
+            ("Active", ", ".join(b.name for b in active), ""),
+            ("Buffs", ", ".join(b.name for b in inactive if not b.condition), dim),
+            ("Conditions", ", ".join(b.name for b in inactive if b.condition), dim),
         ]
         lines = [f"{self.name} ({self.system.name})"]
-        for heading, text in rows:
+        for heading, text, sgr in rows:
             if text:
-                lines.append(
-                    textwrap.fill(
-                        text,
-                        width=79,
-                        initial_indent=f"{heading + ':':12}",
-                        subsequent_indent=" " * 12,
-                    )
-                )
+                wrapped = textwrap.wrap(text, width=79 - 12)
+                for i, line in enumerate(wrapped):
+                    indent = f"{heading + ':':12}" if i == 0 else " " * 12
+                    lines.append(indent + paint(line, sgr))
         return "\n".join(lines)
 
     __repr__ = __str__

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .dice import Damage, Dice, Term, default_dice, parse_terms, roll_damage
+from .style import stripe, theme
 from .systems import Check, GameSystem, get_system
 
 
@@ -177,13 +178,18 @@ class AttackSequence:
         return total
 
     def __str__(self) -> str:
+        sgr = theme().stripe
         if self.hits is None and not self.crits:
-            return "\n\n".join(f"#{n} {o}" for n, o in enumerate(self.outcomes, 1))
+            return "\n\n".join(
+                stripe(f"#{n} {o}", sgr if n % 2 == 0 else "")
+                for n, o in enumerate(self.outcomes, 1)
+            )
         lines = []
-        for n, o, is_crit in self._landed():
+        for i, (n, o, is_crit) in enumerate(self._landed()):
             dmg = o.crit_damage if is_crit else o.damage
             crit_note = f" (crit {o.crit_note})" if is_crit else ""
-            lines.append(f"#{n} {o.label}{crit_note}: {dmg.total}")
+            line = f"#{n} {o.label}{crit_note}: {dmg.total}"
+            lines.append(stripe(line, sgr if i % 2 else ""))
         lines.append("=" * 20)
         lines.append(str(self.damage))
         return "\n".join(lines)
