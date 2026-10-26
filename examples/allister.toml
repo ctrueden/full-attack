@@ -110,12 +110,15 @@ attack = -1
 attack = -4  # -2 entangled, -2 from the -4 Dex penalty
 
 [conditions.exhausted]
+group = "fatigue"  # replaces fatigued
 attack = -3  # -6 Dex
 
 [conditions.fatigued]
+group = "fatigue"
 attack = -1  # -2 Dex
 
 [conditions.frightened]
+group = "fear"  # replaces shaken
 attack = -2
 
 [conditions.invisible]
@@ -125,6 +128,7 @@ attack = 2
 attack = -4  # melee only
 
 [conditions.shaken]
+group = "fear"
 attack = -2
 
 [conditions.sickened]
