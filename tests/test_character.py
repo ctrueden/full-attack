@@ -123,9 +123,12 @@ def test_load_example():
     assert allister.name == "Allister"
     assert len(allister.routines["full"]) == 9
     # Base +37/+34, with power attack (-5), haste (+1), and good hope (+2).
-    assert [o.bonus for o in allister.full()] == [35, 32, 30, 27, 25, 22, 20, 27, 35]
-    unhasted = allister.full(buffs="-haste")
-    assert len(unhasted) == 8 and unhasted[-1].label == "Eternal defender slam"
+    assert [o.bonus for o in allister.full()] == [35, 32, 30, 27, 25, 22, 20, 35]
+    # The slam needs held ground (+2), and the haste attack needs haste.
+    held = allister.full(buffs=["held ground", "-haste"])
+    assert len(held) == 8 and held[-1].label == "Eternal defender slam"
+    # power attack -5, good hope +2, held ground +2, iterative step 1 -5
+    assert held[-1].bonus == 34 - 5 + 2 + 2 - 5
 
 
 def test_load_by_name(tmp_path, monkeypatch):

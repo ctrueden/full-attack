@@ -27,7 +27,7 @@ full = [
   { weapon = "strike", step = 2, label = "Third unarmed strike" },
   { weapon = "shield", step = 2, label = "Third shield bash" },
   { weapon = "strike", step = 3, label = "Fourth unarmed strike" },
-  { weapon = "shield", step = 1, label = "Eternal defender slam" },  # Slam ability
+  { weapon = "shield", step = 1, label = "Eternal defender slam", buff = "held ground" },  # Slam ability
   { weapon = "strike", label = "Haste attack", buff = "haste" },
 ]
 
