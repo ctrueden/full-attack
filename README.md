@@ -10,8 +10,9 @@ also drop whatever the target is immune to.
 
 You drive it from the Python REPL.
 
-Supported game systems: D&D 3.0 (`"3.0"`), D&D 3.5 (`"3.5"`), and
-Pathfinder 1E (`"pf1"`).
+Supported game systems: D&D 3.0 (`"3.0"`), D&D 3.5 (`"3.5"`), Pathfinder
+1E (`"pf1"`), and D&D 5E (`"5e"`). See [Game systems](#game-systems) for
+how each one handles crits and extra attacks.
 
 ## Setup
 
@@ -208,6 +209,24 @@ for one roll, either for every weapon or per weapon:
 >>> al.full(bonus={"shield": -2})
 ```
 
+### Advantage and disadvantage
+
+Roll two d20s and keep the higher (advantage) or lower (disadvantage):
+
+```python
+>>> brynn.attack("attack", adv=True)
+#1 Attack 1: adv(15, 18) + 9 = 27
+...
+```
+
+Buffs and conditions can grant either one too (`advantage = true` or
+`disadvantage = true`), so `poisoned` can give disadvantage. As in 5E, any
+advantage plus any disadvantage cancel out, leaving a normal roll. This is
+meant for 5E, but it works in any system, e.g. for 3.x effects that roll
+twice and keep the better result.
+
+### Alternatives and stacking
+
 Buffs that are alternatives to each other, like `flanking` and
 `outflanking`, share a `group`: switching one on switches the others off.
 Beyond that, full-attack doesn't know the stacking rules: if two buffs
@@ -226,7 +245,7 @@ See [examples/allister.toml](examples/allister.toml) for a complete one.
 
 ```toml
 name = "Grog"        # optional; defaults to the file name
-system = "pf1"       # "3.0", "3.5" or "pf1"
+system = "pf1"       # "3.0", "3.5", "pf1" or "5e"
 
 [weapons.axe]
 bonus = 18           # attack bonus, before buffs and conditions
@@ -271,20 +290,22 @@ attack = -2
 ```
 
 **Weapons.** Each one needs a `bonus` and a `damage` expression. In 3.x,
-`crit_range` and `crit_mult` set the critical threat range and multiplier.
+`crit_range` and `crit_mult` set the critical threat range and multiplier;
+in 5E, `crit_range` sets the lowest natural roll that crits.
 The weapon's name (`axe`) doubles as a method: `grog.axe()`.
 
 **Routines.** A list of attacks, each naming a `weapon`. `step` is the
 iterative attack number, counting from 0: in 3.x each step takes another
-−5 (step 1 is −5, step 2 is −10, and so on), and step defaults to 0. `label`
+−5 (step 1 is −5, step 2 is −10, and so on), and step defaults to 0. 5E
+has no iterative penalty, so `step` makes no difference there. `label`
 names the attack in the output (it defaults to the weapon name). Each
 routine is also a method: `grog.full()`. A routine and a weapon can't share
 a name. An entry with a `buff` is only rolled while that buff is active.
 
 **Buffs and conditions** can set `attack` (a number), `damage` and
-`crit_damage` (expressions), `active`, and `group`. Each of `attack`,
-`damage` and `crit_damage` can be a single value for every weapon or a
-table of values per weapon. Switching on a buff switches off the others in
+`crit_damage` (expressions), `advantage` and `disadvantage` (true or
+false), `active`, and `group`. Each of these except `active` and `group`
+can be a single value for every weapon or a table of values per weapon. Switching on a buff switches off the others in
 its `group`, and at most one buff per group can start out `active`.
 `crit_damage` is added to critical damage as is, without being multiplied.
 Conditions go in `[conditions.NAME]` and work the same way as buffs; they
@@ -309,8 +330,33 @@ An expression is a list of terms joined by `+` or `-`:
 - Mark **extra** damage with `~`: any dice beyond the weapon's own, such as
   sneak attack, flaming, holy, or merciful. In 3.x and Pathfinder 1E, a
   critical hit multiplies the weapon's dice and flat bonuses, but never
-  extra damage.
+  extra damage. In 5E, `~` makes no difference.
 - A `-` term subtracts.
+
+## Game systems
+
+| | Crit threat | Confirm roll | Crit damage | Extra attacks |
+|---|---|---|---|---|
+| 3.0, 3.5, PF1 | natural `crit_range`–20 | yes | weapon dice and flat bonuses ×`crit_mult`; `~` extra damage not multiplied | −5 per `step` |
+| 5E | natural `crit_range`–20 | no | every damage die rolled twice, `~` included; flat bonuses not | no penalty |
+
+In every system, a natural 20 is flagged `(auto-hit)` and a natural 1
+`(auto-miss)`. [examples/brynn.toml](examples/brynn.toml) is a 5E
+character, a Champion fighter with Extra Attack and Action Surge.
+
+## Colors
+
+Every other attack gets a shaded background, and inactive buffs and
+conditions are shown in gray. Choose a theme to match your terminal:
+
+```python
+>>> set_theme("light")   # or "dark", or "plain" for no colors
+```
+
+Or set `FULL_ATTACK_THEME=light` in your environment. Otherwise
+full-attack guesses: it uses `$COLORFGBG` if your terminal sets it, and
+dark if not. Colors are switched off when `$NO_COLOR` is set, or when output
+isn't going to a terminal.
 
 ## Tips
 

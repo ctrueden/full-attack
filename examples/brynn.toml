@@ -1,0 +1,55 @@
+# Brynn, a level 11 Champion fighter in D&D 5E.
+#
+# Champions crit on a natural 19 or 20. A 5E crit rolls every damage die
+# twice, but not flat bonuses. Extra Attack takes no penalty, so routine
+# entries need no `step`.
+
+name = "Brynn"
+system = "5e"
+
+[weapons.greatsword]
+bonus = 9  # +4 proficiency, +5 Str
+damage = "2d6 slashing + 5 strength"
+crit_range = 19
+
+[weapons.handaxe]
+bonus = 9
+damage = "1d6 slashing + 5 strength"
+crit_range = 19
+
+[routines]
+attack = [
+  { weapon = "greatsword", label = "Attack 1" },
+  { weapon = "greatsword", label = "Attack 2" },
+  { weapon = "greatsword", label = "Attack 3" },
+]
+surge = [  # Action Surge: two Attack actions
+  { weapon = "greatsword", label = "Attack 1" },
+  { weapon = "greatsword", label = "Attack 2" },
+  { weapon = "greatsword", label = "Attack 3" },
+  { weapon = "greatsword", label = "Surge 1" },
+  { weapon = "greatsword", label = "Surge 2" },
+  { weapon = "greatsword", label = "Surge 3" },
+]
+
+[buffs."great weapon master"]
+attack = { greatsword = -5 }
+damage = { greatsword = "10 great weapon master" }
+
+[buffs.enlarge]
+damage = "1d4 enlarge"
+
+[buffs."target prone"]  # advantage on melee attacks against a prone target
+advantage = true
+
+[buffs.invisible]
+advantage = true
+
+[conditions.poisoned]
+disadvantage = true
+
+[conditions.prone]
+disadvantage = true
+
+[conditions.restrained]
+disadvantage = true

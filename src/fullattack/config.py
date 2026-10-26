@@ -99,9 +99,23 @@ def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
             if name in buffs:
                 raise ValueError(f"{where}: already defined in buffs")
             _check_keys(
-                where, table, {"active", "attack", "damage", "crit_damage", "group"}
+                where,
+                table,
+                {
+                    "active",
+                    "attack",
+                    "damage",
+                    "crit_damage",
+                    "advantage",
+                    "disadvantage",
+                    "group",
+                },
             )
             attack = _per_weapon(f"{where}.attack", table.get("attack", {}), weapons)
+            adv, dis = (
+                _per_weapon(f"{where}.{key}", table.get(key, {}), weapons)
+                for key in ("advantage", "disadvantage")
+            )
             damage = {}
             for key in ("damage", "crit_damage"):
                 exprs = _per_weapon(f"{where}.{key}", table.get(key, {}), weapons)
@@ -113,6 +127,8 @@ def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
                 attack,
                 damage["damage"],
                 damage["crit_damage"],
+                adv,
+                dis,
                 condition=section == "conditions",
                 group=table.get("group"),
             )

@@ -102,6 +102,7 @@ def test_unknown_name():
         ({"buffs": {"bless": {"attack": {"bow": 1}}}}, "unknown weapon"),
         ({"routines": {"full": [{"weapon": "axe", "buff": "x"}]}}, "unknown buff"),
         ({"conditions": {"rage": {}}}, "already defined"),
+        ({"buffs": {"x": {"advantage": {"bow": True}}}}, "unknown weapon"),
         (
             {
                 "buffs": {

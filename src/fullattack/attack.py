@@ -21,6 +21,8 @@ class AttackOutcome:
     damage: Damage
     crit_damage: Damage
     crit_note: str
+    mode: str | None = None
+    d20_rolls: tuple[int, ...] = ()
 
     @property
     def to_hit(self) -> int:
@@ -55,7 +57,11 @@ class AttackOutcome:
             if self.check.auto_miss
             else ""
         )
-        lines = [f"{header}d20({self.d20}) + {self.bonus} = {self.to_hit}{auto}"]
+        if self.mode:
+            roll = f"{self.mode}({', '.join(map(str, self.d20_rolls))})"
+        else:
+            roll = f"d20({self.d20})"
+        lines = [f"{header}{roll} + {self.bonus} = {self.to_hit}{auto}"]
         lines.append("Damage:")
         lines.append(str(self.damage))
         if self.threatened:
@@ -78,6 +84,7 @@ def one_attack(
     system: GameSystem | str = "pf1",
     rules: Any = None,
     crit_only: str | list[Term] = (),
+    mode: str | None = None,
     dice: Dice = default_dice,
     **rule_kwargs: Any,
 ) -> AttackOutcome:
@@ -88,9 +95,10 @@ def one_attack(
     terms. Unless `rules` is given, remaining arguments build the system's
     weapon rules, e.g. `one_attack(20, "1d8 axe", 20, 3)` for a 3.x weapon
     threatening on 20 with a x3 multiplier. `crit_only` terms are added to
-    the critical damage only, unmultiplied.
+    the critical damage only, unmultiplied. A `mode` of "adv" or "dis" rolls
+    the d20 twice, keeping the higher (advantage) or lower (disadvantage).
 
-    Dice are rolled in this order: the to-hit d20, any crit confirmation
+    Dice are rolled in this order: the to-hit d20 (or two), any crit confirmation
     the system needs, the normal damage, then the critical damage (always),
     then the `crit_only` terms.
     """
@@ -98,7 +106,10 @@ def one_attack(
     if rules is None:
         rules = system.weapon_rules(*rule_args, **rule_kwargs)
     terms = parse_terms(damage) if isinstance(damage, str) else damage
-    d20 = dice(20)
+    if mode not in (None, "adv", "dis"):
+        raise ValueError(f'Unknown d20 mode {mode!r} (known: "adv", "dis")')
+    d20_rolls = (dice(20), dice(20)) if mode else ()
+    d20 = (max if mode == "adv" else min)(d20_rolls) if mode else dice(20)
     check = system.check(d20, rules, dice)
     damage = roll_damage(terms, dice)
     if isinstance(crit_only, str):
@@ -107,7 +118,15 @@ def one_attack(
         list(crit_only), dice
     )
     return AttackOutcome(
-        label, bonus, d20, check, damage, crit_damage, system.crit_note(rules)
+        label,
+        bonus,
+        d20,
+        check,
+        damage,
+        crit_damage,
+        system.crit_note(rules),
+        mode,
+        d20_rolls,
     )
 
 
@@ -200,17 +219,27 @@ class AttackSequence:
 def attack(
     attacks: list[tuple],
     system: GameSystem | str = "pf1",
+    mode: str | None = None,
     dice: Dice = default_dice,
 ) -> AttackSequence:
     """Resolve a sequence of attacks.
 
     Each entry is a tuple of (label, bonus, damage_expr, *rule_args), where
     rule_args build the system's weapon rules; for 3.x, these are
-    [crit_range[, crit_mult]], defaulting to 20 and 2.
+    [crit_range[, crit_mult]], defaulting to 20 and 2. A `mode` of "adv" or
+    "dis" applies to every attack.
     """
     return AttackSequence(
         tuple(
-            one_attack(bonus, expr, *rule_args, label=label, system=system, dice=dice)
+            one_attack(
+                bonus,
+                expr,
+                *rule_args,
+                label=label,
+                system=system,
+                mode=mode,
+                dice=dice,
+            )
             for label, bonus, expr, *rule_args in attacks
         )
     )

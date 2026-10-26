@@ -1,8 +1,15 @@
 from .base import Check, GameSystem
 from .d20_3x import ThirdEdition
+from .dnd5e import FifthEdition
 
 SYSTEMS: dict[str, GameSystem] = {
-    s.name: s for s in (ThirdEdition("3.0"), ThirdEdition("3.5"), ThirdEdition("pf1"))
+    s.name: s
+    for s in (
+        ThirdEdition("3.0"),
+        ThirdEdition("3.5"),
+        ThirdEdition("pf1"),
+        FifthEdition(),
+    )
 }
 
 

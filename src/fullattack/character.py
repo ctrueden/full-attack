@@ -1,6 +1,7 @@
 import textwrap
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
+from functools import partial
 from typing import Any
 
 from .attack import AttackSequence, one_attack
@@ -37,7 +38,8 @@ class Buff:
     """A named set of modifiers that can be switched on and off.
 
     Each field maps a weapon name to what the buff adds to that weapon:
-    to its attack bonus, its damage, and its damage on a critical hit only.
+    to its attack bonus, its damage, its damage on a critical hit only, and
+    whether it grants advantage or disadvantage on the attack roll.
     A condition (like shaken) works the same way as a buff. Buffs in the
     same `group` are alternatives: switching one on switches the rest off.
     """
@@ -46,6 +48,8 @@ class Buff:
     attack: dict[str, int] = field(default_factory=dict)
     damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
     crit_damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
+    advantage: dict[str, bool] = field(default_factory=dict)
+    disadvantage: dict[str, bool] = field(default_factory=dict)
     condition: bool = False
     group: str | None = None
 
@@ -127,6 +131,8 @@ class Character:
         name: str,
         buffs: str | Iterable[str] = (),
         bonus: int | dict[str, int] = 0,
+        adv: bool = False,
+        dis: bool = False,
         dice: Dice = default_dice,
     ) -> AttackSequence:
         """Roll a routine, or a single attack with a weapon, by name.
@@ -134,6 +140,8 @@ class Character:
         `buffs` toggles buffs for this roll only, as with `buff`.
         `bonus` adjusts every attack's bonus for this roll only, or just
         some weapons' bonuses, e.g. `{"shield": -2}`.
+        `adv` and `dis` give advantage or disadvantage on this roll, on top
+        of any from buffs; having both cancels out.
         """
         if name in self.routines:
             entries = self.routines[name]
@@ -156,9 +164,13 @@ class Character:
             weapon = self.weapons[entry.weapon]
             terms = list(weapon.damage)
             crit_terms = []
+            has_adv, has_dis = adv, dis
             for b in active:
                 terms.extend(b.damage.get(weapon.name, ()))
                 crit_terms.extend(b.crit_damage.get(weapon.name, ()))
+                has_adv = has_adv or b.advantage.get(weapon.name, False)
+                has_dis = has_dis or b.disadvantage.get(weapon.name, False)
+            mode = None if has_adv == has_dis else "adv" if has_adv else "dis"
             outcomes.append(
                 one_attack(
                     self._bonus(weapon, active)
@@ -169,6 +181,7 @@ class Character:
                     system=self.system,
                     rules=weapon.rules,
                     crit_only=crit_terms,
+                    mode=mode,
                     dice=dice,
                 )
             )
@@ -180,9 +193,7 @@ class Character:
         if name in self.__dict__.get("routines", {}) or name in self.__dict__.get(
             "weapons", {}
         ):
-            return lambda buffs=(), bonus=0, dice=default_dice: self.attack(
-                name, buffs, bonus, dice
-            )
+            return partial(self.attack, name)
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {name!r}"
         )
