@@ -52,7 +52,10 @@ attack = 2
 damage = "2 good hope"
 
 [buffs.flanking]
-attack = 2
+attack = 3  # +2 flanking, +1 ring of tactical precision
+
+[buffs.outflanking]  # flanking with an ally who also has Outflank; not with flanking
+attack = 5  # +4 flanking with Outflank, +1 ring of tactical precision
 
 [buffs."held ground"]
 attack = 2  # +4 morale to Str and Dex
