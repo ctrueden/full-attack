@@ -1,6 +1,6 @@
 from .attack import AttackOutcome, AttackSequence, attack, one_attack
 from .character import Buff, Character, RoutineEntry, Weapon
-from .config import characters, config_dir, load, parse_character
+from .config import characters, config_dir, examples_dir, find, load, parse_character
 from .dice import (
     Damage,
     Dice,

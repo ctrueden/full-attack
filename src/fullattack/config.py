@@ -14,24 +14,48 @@ def config_dir() -> Path:
     return Path(base) / "full-attack"
 
 
+def examples_dir() -> Path:
+    """The directory of example characters bundled with full-attack."""
+    return Path(__file__).parent / "examples"
+
+
 def characters() -> list[str]:
-    """List the names of characters in the config directory."""
-    return sorted(p.stem for p in config_dir().glob("*.toml"))
+    """List the names of characters in the config directory and bundled examples."""
+    dirs = (config_dir(), examples_dir())
+    return sorted({p.stem for d in dirs for p in d.glob("*.toml")})
 
 
-def load(character: str | os.PathLike) -> Character:
-    """Load a character by name from the config directory, or from a TOML file.
+def find(character: str | os.PathLike) -> Path:
+    """Find the file for a character name or path, as `load` does.
 
-    A bare name like `load("allister")` reads ~/.config/full-attack/allister.toml.
-    Anything ending in `.toml` or containing a path separator is a file path,
-    with `.toml` added if missing, e.g. `load("examples/allister")`.
+    Raises FileNotFoundError, naming where it looked, if there is no such file.
     """
     path = Path(character)
     if path.suffix != ".toml":
         bare = len(path.parts) == 1
         path = path.with_name(f"{path.name}.toml")
         if bare:
-            path = config_dir() / path
+            candidates = [config_dir() / path, examples_dir() / path]
+            for candidate in candidates:
+                if candidate.is_file():
+                    return candidate
+            raise FileNotFoundError(
+                f"No character {character!r} in {' or '.join(map(str, candidates))}"
+            )
+    if not path.is_file():
+        raise FileNotFoundError(f"No character file {path}")
+    return path
+
+
+def load(character: str | os.PathLike) -> Character:
+    """Load a character by name, or from a TOML file.
+
+    A bare name like `load("allister")` reads ~/.config/full-attack/allister.toml,
+    or else the bundled example of that name. Anything ending in `.toml` or
+    containing a path separator is a file path, with `.toml` added if missing,
+    e.g. `load("mychars/grog")`.
+    """
+    path = find(character)
     with open(path, "rb") as f:
         data = tomllib.load(f)
     try:
@@ -64,7 +88,7 @@ def _per_weapon(where: str, value: Any, weapons: dict) -> dict[str, Any]:
 
 
 def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
-    """Build a character from parsed TOML data; see examples/allister.toml."""
+    """Build a character from parsed TOML data; see the bundled examples."""
     _check_keys(
         "top level",
         data,

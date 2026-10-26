@@ -39,6 +39,9 @@ dev = [
     "validate-pyproject[all]",
 ]
 
+[project.scripts]
+full-attack = "fullattack.cli:main"
+
 [project.urls]
 homepage = "https://github.com/ctrueden/full-attack"
 documentation = "https://github.com/ctrueden/full-attack/blob/main/README.md"
@@ -49,6 +52,9 @@ tracker = "https://github.com/ctrueden/full-attack/issues"
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = false
+
+[tool.setuptools.package-data]
+fullattack = ["examples/*.toml"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

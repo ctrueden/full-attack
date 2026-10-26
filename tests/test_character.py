@@ -5,7 +5,9 @@ import pytest
 
 from fullattack import load, parse_character
 
-EXAMPLE = Path(__file__).parent.parent / "examples" / "allister.toml"
+EXAMPLE = (
+    Path(__file__).parent.parent / "src" / "fullattack" / "examples" / "allister.toml"
+)
 
 CHARACTER = tomllib.loads("""
 system = "pf1"

@@ -5,7 +5,7 @@ import pytest
 from fullattack import get_system, load, one_attack, parse_terms, roll_damage
 
 dnd5e = get_system("5e")
-BRYNN = Path(__file__).parent.parent / "examples" / "brynn.toml"
+BRYNN = Path(__file__).parent.parent / "src" / "fullattack" / "examples" / "brynn.toml"
 
 
 def test_5e_check(script):

@@ -16,35 +16,44 @@ how each one handles crits and extra attacks.
 
 ## Setup
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then
+try the bundled example character, Allister:
 
 ```sh
-git clone https://github.com/ctrueden/full-attack
-cd full-attack
-mkdir -p ~/.config/full-attack
-cp examples/allister.toml ~/.config/full-attack/
+uvx full-attack allister
 ```
 
-Start a REPL with everything imported and your character loaded:
-
-```sh
-uv run python -i -c "from fullattack import *; al = load('allister')"
-```
-
-(From outside the repository, use `uv run --project /path/to/full-attack ...`.)
+This starts a Python REPL with full-attack imported and each character you
+name loaded into a variable named after it. This README calls Allister `al`
+for short:
 
 ```python
+>>> al = allister
 >>> al
 Allister (pf1)
 Weapons:    strike +35, shield +32
 Routines:   full (9)
 Active:     merciful, power attack, haste, good hope
-Buffs:      flanking, held ground, combat expertise, fighting defensively,
-            defensive crane, housing spirit, corrupted outsider, death mark,
-            challenge, sanctified heroism, greater heroism, smite, tiger style
+Buffs:      flanking, outflanking, held ground, combat expertise, fighting
+            defensively, defensive crane, housing spirit, corrupted outsider,
+            death mark, challenge, sanctified heroism, greater heroism, smite,
+            tiger style
 Conditions: dazzled, entangled, exhausted, fatigued, frightened, invisible,
             prone, shaken, sickened
 ```
+
+To make a character of your own, start from an example:
+
+```sh
+uvx full-attack --init allister    # copies it to ~/.config/full-attack/
+```
+
+Edit `~/.config/full-attack/allister.toml` (see
+[Writing a character file](#writing-a-character-file)), and
+`uvx full-attack allister` loads your copy from then on. You can also pass a
+file path, like `uvx full-attack path/to/grog.toml`, or load characters
+from inside the REPL with `load(...)`. `uvx full-attack --list` shows the
+characters available, and `--help` shows other options.
 
 The weapon bonuses shown include the active buffs and conditions.
 
@@ -236,12 +245,13 @@ don't stack (say, two morale bonuses), don't switch both on.
 
 Character files are [TOML](https://toml.io/). Put them in
 `~/.config/full-attack/` to load them by name (`load("allister")` reads
-`allister.toml`), or load any file directly with
-`load("path/to/grog.toml")` (the `.toml` is optional when the path has a
-`/`, e.g. `load("examples/allister")`). `characters()` lists the names available.
+`allister.toml`, or else the bundled example of that name), or load any
+file directly with `load("path/to/grog.toml")` (the `.toml` is optional
+when the path has a `/`). `characters()` lists the names available.
 (If `$XDG_CONFIG_HOME` is set, that is used instead of `~/.config`.)
 
-See [examples/allister.toml](examples/allister.toml) for a complete one.
+See [allister.toml](src/fullattack/examples/allister.toml) for a complete
+one, or copy it with `full-attack --init allister`.
 
 ```toml
 name = "Grog"        # optional; defaults to the file name
@@ -341,7 +351,7 @@ An expression is a list of terms joined by `+` or `-`:
 | 5E | natural `crit_range`–20 | no | every damage die rolled twice, `~` included; flat bonuses not | no penalty |
 
 In every system, a natural 20 is flagged `(auto-hit)` and a natural 1
-`(auto-miss)`. [examples/brynn.toml](examples/brynn.toml) is a 5E
+`(auto-miss)`. [brynn.toml](src/fullattack/examples/brynn.toml) is a 5E
 character, a Champion fighter with Extra Attack and Action Surge.
 
 ## Colors
@@ -353,7 +363,8 @@ conditions are shown in gray. Choose a theme to match your terminal:
 >>> set_theme("light")   # or "dark", or "plain" for no colors
 ```
 
-Or set `FULL_ATTACK_THEME=light` in your environment. Otherwise
+Or launch with `full-attack --theme light`, or set `FULL_ATTACK_THEME=light`
+in your environment. Otherwise
 full-attack guesses: it uses `$COLORFGBG` if your terminal sets it, and
 dark if not. Colors are switched off when `$NO_COLOR` is set, or when output
 isn't going to a terminal.
@@ -367,6 +378,9 @@ isn't going to a terminal.
   `al.full(dice=lambda sides: sides)`.
 
 ## Development
+
+To work from a clone of this repository, use `uv run full-attack allister`
+(or `uv run python -m fullattack allister`).
 
 ```sh
 make test   # run the tests
