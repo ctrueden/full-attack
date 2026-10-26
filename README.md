@@ -203,9 +203,10 @@ for one roll, either for every weapon or per weapon:
 >>> al.full(bonus={"shield": -2})
 ```
 
-full-attack doesn't know the stacking rules: if two buffs don't stack (say,
-two morale bonuses), don't switch both on. The same goes for alternatives
-like `fighting defensively` and `defensive crane`.
+Buffs that are alternatives to each other, like `flanking` and
+`outflanking`, share a `group`: switching one on switches the others off.
+Beyond that, full-attack doesn't know the stacking rules: if two buffs
+don't stack (say, two morale bonuses), don't switch both on.
 
 ## Writing a character file
 
@@ -252,6 +253,14 @@ attack = 1
 [buffs."vicious strikes"]
 crit_damage = { axe = "1d6 bleed" }  # added on a crit only
 
+[buffs.flanking]
+group = "flanking"                 # alternatives: one at a time
+attack = 2
+
+[buffs.outflanking]
+group = "flanking"
+attack = 4
+
 [conditions.shaken]
 attack = -2
 ```
@@ -268,8 +277,10 @@ routine is also a method: `grog.full()`. A routine and a weapon can't share
 a name. An entry with a `buff` is only rolled while that buff is active.
 
 **Buffs and conditions** can set `attack` (a number), `damage` and
-`crit_damage` (expressions), and `active`. Each of these except `active`
-can be a single value for every weapon or a table of values per weapon.
+`crit_damage` (expressions), `active`, and `group`. Each of `attack`,
+`damage` and `crit_damage` can be a single value for every weapon or a
+table of values per weapon. Switching on a buff switches off the others in
+its `group`, and at most one buff per group can start out `active`.
 `crit_damage` is added to critical damage as is, without being multiplied.
 Conditions go in `[conditions.NAME]` and work the same way as buffs; they
 are just listed separately. Each name must be unique across both.

@@ -98,7 +98,9 @@ def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
             where = f"{section}.{name}"
             if name in buffs:
                 raise ValueError(f"{where}: already defined in buffs")
-            _check_keys(where, table, {"active", "attack", "damage", "crit_damage"})
+            _check_keys(
+                where, table, {"active", "attack", "damage", "crit_damage", "group"}
+            )
             attack = _per_weapon(f"{where}.attack", table.get("attack", {}), weapons)
             damage = {}
             for key in ("damage", "crit_damage"):
@@ -112,9 +114,20 @@ def parse_character(data: dict[str, Any], default_name: str = "?") -> Character:
                 damage["damage"],
                 damage["crit_damage"],
                 condition=section == "conditions",
+                group=table.get("group"),
             )
             if table.get("active", False):
                 active.add(name)
+    groups = {}
+    for name in active:
+        group = buffs[name].group
+        if group in groups:
+            raise ValueError(
+                f"buffs {groups[group]!r} and {name!r} in group {group!r} "
+                "are both active"
+            )
+        if group:
+            groups[group] = name
 
     routines = {}
     for name, entries in data.get("routines", {}).items():

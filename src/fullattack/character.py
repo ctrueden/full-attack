@@ -37,7 +37,8 @@ class Buff:
 
     Each field maps a weapon name to what the buff adds to that weapon:
     to its attack bonus, its damage, and its damage on a critical hit only.
-    A condition (like shaken) works the same way as a buff.
+    A condition (like shaken) works the same way as a buff. Buffs in the
+    same `group` are alternatives: switching one on switches the rest off.
     """
 
     name: str
@@ -45,6 +46,7 @@ class Buff:
     damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
     crit_damage: dict[str, tuple[Term, ...]] = field(default_factory=dict)
     condition: bool = False
+    group: str | None = None
 
 
 @dataclass(frozen=True, repr=False)
@@ -73,11 +75,20 @@ class Character:
             if name not in self.buffs:
                 known = ", ".join(self.buffs) or "none"
                 raise ValueError(f"Unknown buff {name!r} (known: {known})")
-            (active.add if on else active.discard)(name)
+            if on:
+                group = self.buffs[name].group
+                if group:
+                    active -= {b for b in active if self.buffs[b].group == group}
+                active.add(name)
+            else:
+                active.discard(name)
         return frozenset(active)
 
     def buff(self, *toggles: str) -> "Character":
-        """Return a copy with buffs switched on ("bless") or off ("-bless")."""
+        """Return a copy with buffs switched on ("bless") or off ("-bless").
+
+        Switching a buff on switches off the others in its group.
+        """
         return replace(self, active=self._toggled(toggles))
 
     def _bonus(self, weapon: Weapon, active: list[Buff]) -> int:

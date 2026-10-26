@@ -32,6 +32,8 @@ full = [
 ]
 
 # A number or expression applies to every weapon; a table gives one per weapon.
+# Buffs in the same group are alternatives: switching one on switches the
+# others off.
 
 [buffs.merciful]
 active = true
@@ -52,9 +54,11 @@ attack = 2
 damage = "2 good hope"
 
 [buffs.flanking]
+group = "flanking"
 attack = 3  # +2 flanking, +1 ring of tactical precision
 
-[buffs.outflanking]  # flanking with an ally who also has Outflank; not with flanking
+[buffs.outflanking]  # flanking with an ally who also has Outflank
+group = "flanking"
 attack = 5  # +4 flanking with Outflank, +1 ring of tactical precision
 
 [buffs."held ground"]
@@ -65,9 +69,11 @@ damage = { strike = "2 held ground", shield = "1 held ground" }  # off-hand: hal
 attack = -5
 
 [buffs."fighting defensively"]
+group = "fighting defensively"
 attack = -4
 
 [buffs."defensive crane"]  # fighting defensively in crane stance
+group = "fighting defensively"
 attack = -1
 
 [buffs."housing spirit"]

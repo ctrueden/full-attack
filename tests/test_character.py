@@ -41,6 +41,14 @@ crit_damage = "1d4 bleed"
 [buffs.haste]
 attack = 1
 
+[buffs.flanking]
+group = "flanking"
+attack = 2
+
+[buffs.outflanking]
+group = "flanking"
+attack = 4
+
 [conditions.shaken]
 attack = -2
 """)
@@ -94,6 +102,15 @@ def test_unknown_name():
         ({"buffs": {"bless": {"attack": {"bow": 1}}}}, "unknown weapon"),
         ({"routines": {"full": [{"weapon": "axe", "buff": "x"}]}}, "unknown buff"),
         ({"conditions": {"rage": {}}}, "already defined"),
+        (
+            {
+                "buffs": {
+                    "a": {"group": "g", "active": True},
+                    "b": {"group": "g", "active": True},
+                }
+            },
+            "both active",
+        ),
     ],
 )
 def test_config_errors(change, error):
@@ -152,3 +169,11 @@ def test_summary():
     assert "Active:     rage, haste" in text
     assert "Buffs:      bless, focus" in text
     assert "Conditions: shaken" in text
+
+
+def test_buff_groups():
+    c = parse_character(CHARACTER)
+    assert c.buff("flanking").buff("outflanking").active == {"rage", "outflanking"}
+    assert c.buff("outflanking", "flanking").active == {"rage", "flanking"}
+    assert c.buff("flanking", "-flanking").active == {"rage"}
+    assert c.buff("flanking", "haste").active == {"rage", "flanking", "haste"}
