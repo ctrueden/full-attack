@@ -74,7 +74,7 @@ class Character:
             name = toggle.lstrip("+-").strip()
             if name not in self.buffs:
                 known = ", ".join(self.buffs) or "none"
-                raise ValueError(f"Unknown buff {name!r} (known: {known})")
+                raise ValueError(f"Unknown buff or condition {name!r} (known: {known})")
             if on:
                 group = self.buffs[name].group
                 if group:
@@ -90,6 +90,32 @@ class Character:
         Switching a buff on switches off the others in its group.
         """
         return replace(self, active=self._toggled(toggles))
+
+    def _operand(self, names: object, sign: str) -> tuple[str, ...] | None:
+        """Turn the right side of `al + ...` or `al - ...` into toggles."""
+        if isinstance(names, str):
+            names = (names,)
+        if not isinstance(names, (tuple, list)) or not all(
+            isinstance(n, str) for n in names
+        ):
+            return None
+        for name in names:
+            if name.startswith(("+", "-")):
+                raise ValueError(
+                    f"Use a plain name with + and -, not {name!r}; "
+                    "the operator says whether to switch it on or off"
+                )
+        return tuple(sign + n for n in names)
+
+    def __add__(self, names: object) -> "Character":
+        """`al += "haste"` or `al += "haste", "flanking"` switches buffs on."""
+        toggles = self._operand(names, "+")
+        return NotImplemented if toggles is None else self.buff(*toggles)
+
+    def __sub__(self, names: object) -> "Character":
+        """`al -= "haste"` or `al -= "haste", "flanking"` switches buffs off."""
+        toggles = self._operand(names, "-")
+        return NotImplemented if toggles is None else self.buff(*toggles)
 
     def _bonus(self, weapon: Weapon, active: list[Buff]) -> int:
         """A weapon's attack bonus with the given buffs, before iterative penalties."""

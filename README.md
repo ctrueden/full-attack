@@ -186,12 +186,17 @@ For one roll only:
 For the rest of the fight, until you change it back:
 
 ```python
->>> al = al.buff("held ground", "-haste")
->>> al = al.buff("-held ground", "haste")
+>>> al += "held ground"
+>>> al -= "haste", "power attack"
+>>> al = al.buff("smite", "-held ground")   # several changes, both ways
 ```
 
-A name on its own (or with `+`) switches a buff on, and a leading `-`
-switches it off. Conditions toggle exactly the same way.
+In `buffs=...` and `buff(...)`, a name on its own (or with `+`) switches a
+buff on, and a leading `-` switches it off. Conditions toggle exactly the
+same way: `al += "shaken"`.
+
+Rolls you've already made keep their numbers: changing `al` never changes an
+existing `fa`.
 
 Switching off haste also drops the haste attack from the routine.
 

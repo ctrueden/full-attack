@@ -177,3 +177,22 @@ def test_buff_groups():
     assert c.buff("outflanking", "flanking").active == {"rage", "flanking"}
     assert c.buff("flanking", "-flanking").active == {"rage"}
     assert c.buff("flanking", "haste").active == {"rage", "flanking", "haste"}
+
+
+def test_buff_operators():
+    c = parse_character(CHARACTER)
+    original = c
+    c += "haste"
+    assert c.active == {"rage", "haste"}
+    c -= "rage", "haste"
+    assert c.active == set()
+    c += ["flanking", "shaken"]
+    c += "outflanking"
+    assert c.active == {"outflanking", "shaken"}
+    assert original.active == {"rage"}
+    with pytest.raises(ValueError, match="plain name"):
+        c -= "-shaken"
+    with pytest.raises(TypeError):
+        c + 3
+    with pytest.raises(ValueError, match="Unknown buff or condition"):
+        c += "bardsong"
