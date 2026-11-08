@@ -51,7 +51,7 @@ def test_launch(config, monkeypatch, capsys):
     setup = commands[0][-1]
     assert setup.startswith("from fullattack import *; allister = load('allister')")
     assert "brynn = load(" in setup
-    assert "Try: allister.full()" in capsys.readouterr().out
+    assert "Try: allister.full(), or cheat()" in capsys.readouterr().out
 
 
 def test_launch_bad_character(config, capsys):

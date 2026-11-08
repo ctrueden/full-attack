@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         if hint.startswith("load"):
             first = next(iter([*loaded.routines, *loaded.weapons]), None)
             hint = f"{variable}.{first}()" if first else variable
-    print(f"Try: {hint}", flush=True)
+    print(f"Try: {hint}, or cheat() for common commands", flush=True)
 
     env = {**os.environ}
     if args.theme:

@@ -57,6 +57,10 @@ characters available, and `--help` shows other options.
 
 The weapon bonuses shown include the active buffs and conditions.
 
+Type `cheat()` in the REPL for a one-screen cheat sheet of the most common
+commands, with examples using your character's own routines, weapons, and
+buffs. With several characters loaded, pick one with `cheat(brynn)`.
+
 ## A combat round
 
 ### 1. Roll the routine
