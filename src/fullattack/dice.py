@@ -12,7 +12,7 @@ def default_dice(sides: int) -> int:
     return randint(1, sides)
 
 
-TERM_RE = re.compile(r"^([+-])?\s*(~)?(\d+)(?:d(\d+))?\s+(.+)$")
+TERM_RE = re.compile(r"^([+-])?\s*(~)?(\d+)(?:d(\d+))?(?:\s+(.+))?$")
 
 # A '+' or '-' starts a new term when a count follows it or whitespace
 # surrounds it, so labels like "two-weapon" keep their hyphens.
@@ -32,7 +32,14 @@ class Term:
     extra: bool = False
 
 
-def parse_terms(expr: str) -> list[Term]:
+def _default_label(count: int, die: int | None) -> str:
+    """A label for a term written without one, e.g. "dice" for 2d20."""
+    if die:
+        return "die" if abs(count) == 1 else "dice"
+    return "penalty" if count < 0 else "bonus"
+
+
+def parse_terms(expr: str, default_labels: bool = False) -> list[Term]:
     """Parse a damage expression into a list of terms.
 
     The expression is a '+'/'-'-separated list of terms, each of the form
@@ -40,7 +47,8 @@ def parse_terms(expr: str) -> list[Term]:
     A term with `dM` rolls N dice of M sides; without it, N is a flat bonus.
     A leading `~` marks an "extra" term: damage beyond the weapon's own,
     like sneak attack or flaming, which some game systems treat specially
-    on a critical hit.
+    on a critical hit. With `default_labels`, a label may be omitted, and
+    is filled in as "die", "dice", "bonus" or "penalty".
 
     Raises ValueError if a term cannot be parsed.
     """
@@ -50,11 +58,13 @@ def parse_terms(expr: str) -> list[Term]:
         if not part:
             continue
         match = TERM_RE.match(part)
-        if not match:
+        if not match or not (match[5] or default_labels):
             raise ValueError(f"Could not parse term: {part!r}")
         sign, extra, count, die, label = match.groups()
         count = -int(count) if sign == "-" else int(count)
-        terms.append(Term(label, count, int(die) if die else None, bool(extra)))
+        die = int(die) if die else None
+        label = label or _default_label(count, die)
+        terms.append(Term(label, count, die, bool(extra)))
     return terms
 
 
@@ -130,6 +140,13 @@ def roll_damage(terms: list[Term], dice: Dice = default_dice) -> Damage:
     return Damage(tuple(roll_term(t, dice=dice) for t in terms))
 
 
-def roll(expr: str, dice: Dice = default_dice) -> str:
-    """Roll a damage expression once and return the breakdown text."""
-    return str(roll_damage(parse_terms(expr), dice))
+def roll(expr: str | int = "1d20", dice: Dice = default_dice) -> str:
+    """Roll a damage expression once and return the breakdown text.
+
+    Labels are optional here, e.g. `roll("1d20 + 5")`. An integer is a
+    modifier to a d20, so `roll(5)` means the same thing, and `roll(-3)`
+    means `roll("1d20 - 3")`.
+    """
+    if isinstance(expr, int):
+        expr = f"1d20 {expr:+d}"
+    return str(roll_damage(parse_terms(expr, default_labels=True), dice))

@@ -1,6 +1,14 @@
 import pytest
 
-from fullattack import Damage, Term, TermRoll, parse_terms, roll_damage, roll_term
+from fullattack import (
+    Damage,
+    Term,
+    TermRoll,
+    parse_terms,
+    roll,
+    roll_damage,
+    roll_term,
+)
 
 
 def test_parse_terms():
@@ -26,6 +34,55 @@ def test_parse_hyphenated_label():
 def test_parse_error():
     with pytest.raises(ValueError):
         parse_terms("1d8 weapon + oops")
+
+
+@pytest.mark.parametrize(
+    "expr, labeled",
+    [
+        ("1d20", "1d20 die"),
+        ("2d20", "2d20 dice"),
+        ("1d20 + 5", "1d20 die + 5 bonus"),
+        ("1d20 - 3", "1d20 die - 3 penalty"),
+        ("1d20-3", "1d20 die - 3 penalty"),
+        ("- 1d4", "- 1d4 die"),
+        ("2d6 fire + 5", "2d6 fire + 5 bonus"),
+    ],
+)
+def test_default_labels(expr, labeled):
+    assert parse_terms(expr, default_labels=True) == parse_terms(labeled)
+
+
+def test_labels_required_by_default():
+    with pytest.raises(ValueError, match=r"Could not parse term: '\+ 5'"):
+        parse_terms("1d8 weapon + 5")
+
+
+def test_default_labels_still_reject_garbage():
+    with pytest.raises(ValueError):
+        parse_terms("1d20 + oops", default_labels=True)
+    with pytest.raises(ValueError):
+        parse_terms("2d6fire", default_labels=True)
+
+
+def test_roll_without_labels(script):
+    assert roll("1d20 + 5", script(12)).splitlines() == [
+        " 12  die",
+        "  5  bonus",
+        "-" * 20,
+        " 17  Total",
+    ]
+
+
+def test_roll_defaults_to_d20(script):
+    assert roll(dice=script(20)) == roll("1d20", script(20))
+
+
+@pytest.mark.parametrize(
+    "modifier, expr",
+    [(5, "1d20 + 5"), (-3, "1d20 - 3"), (0, "1d20 + 0")],
+)
+def test_roll_integer_modifies_d20(script, modifier, expr):
+    assert roll(modifier, script(12)) == roll(expr, script(12))
 
 
 def test_roll_term(script):

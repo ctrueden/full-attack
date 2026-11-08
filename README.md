@@ -177,6 +177,10 @@ Roll a damage expression on its own:
   8  Total
 ```
 
+Labels are optional here, so `roll("1d20 + 5")` works too. Terms without
+one are labeled `die`, `dice`, `bonus`, or `penalty`. A bare `roll()` rolls
+a d20, and `roll(5)` is short for `roll("1d20 + 5")`.
+
 An ad-hoc attack, without a character file. Arguments after the damage are
 the crit range and multiplier:
 
